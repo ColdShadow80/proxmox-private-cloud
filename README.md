@@ -147,7 +147,8 @@ zfs create $POOL/$DATASET
 
 ### 03-create-lxc.sh
 
-Creates a Debian 12 LXC container with nested virtualization enabled and resources assigned.
+Creates an LXC container with nested virtualization enabled and resources assigned.
+Prompts for Debian major version (default: 12) and automatically selects the latest matching Proxmox template.
 
 ```bash
 pct create $CTID local:vztmpl/debian-12-standard_12.3-1_amd64.tar.gz \

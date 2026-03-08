@@ -25,17 +25,29 @@ echo "Using storage for templates: $TEMPLATE_STORAGE"
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# Template
-TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
-
-# Ensure template exists
-if ! pveam list | grep -q "$TEMPLATE_NAME"; then
-    echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
-    exit 1
+# Choose Debian major version (default: 12)
+read -rp "Debian major version for LXC template [12]: " DEBIAN_MAJOR_INPUT
+if [ -n "$DEBIAN_MAJOR_INPUT" ]; then
+    if ! [[ "$DEBIAN_MAJOR_INPUT" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: Debian version must be a number (example: 12)."
+        exit 1
+    fi
+    DEBIAN_MAJOR="$DEBIAN_MAJOR_INPUT"
+else
+    DEBIAN_MAJOR=12
 fi
 
+# Pick latest matching Debian standard template from upstream list
+TEMPLATE_PATTERN="^debian-${DEBIAN_MAJOR}-standard_.*_amd64\\.tar\\.zst$"
+TEMPLATE_NAME=$(pveam available --section system 2>/dev/null | awk 'NR>1 {print $2}' | grep -E "$TEMPLATE_PATTERN" | sort -V | tail -n1)
+if [ -z "$TEMPLATE_NAME" ]; then
+    echo "ERROR: Could not find an available Debian ${DEBIAN_MAJOR} standard template in pveam!"
+    exit 1
+fi
+echo "Using template: $TEMPLATE_NAME"
+
 # Download template if not present
-if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
+if ! pveam list "$TEMPLATE_STORAGE" | grep -q "$TEMPLATE_NAME"; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
 else
