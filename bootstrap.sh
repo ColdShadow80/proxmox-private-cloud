@@ -18,20 +18,15 @@ fetch_script() {
     local url="$BASE_URL/$script_name"
     local local_path="$SCRIPT_DIR/$script_name"
 
-    echo ""
-    echo "------------------------------"
-    echo "Fetching script: $script_name"
-    echo "URL: $url"
-    echo "------------------------------"
-
+    # Download silently
     curl -fsSL "$url" -o "$local_path"
     if [ ! -f "$local_path" ]; then
         echo "ERROR: Failed to download $script_name" >&2
         exit 1
     fi
-    echo "✅ Successfully downloaded $script_name"
+    echo "✅ Successfully downloaded $script_name" >&2  # log to stderr
 
-    # Only return the file path, no extra echo
+    # Return only the path
     printf '%s' "$local_path"
 }
 
@@ -60,10 +55,11 @@ run_script() {
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
 run_script "$ZFS_SCRIPT" source
 
+export ZFS_POOL="$POOL"
 echo "✅ ZFS_POOL set to $ZFS_POOL"
 
 # ------------------------------
-# Step 2: Ask user for starting CTID
+# Step 2: Determine starting CTID
 # ------------------------------
 read -p 'Do you want to specify a starting container ID? [y/N]: ' START_CID_ANSWER
 if [[ "$START_CID_ANSWER" =~ ^[Yy]$ ]]; then
@@ -86,7 +82,7 @@ echo "Next available CTID(s) to be used: $CTID"
 # ------------------------------
 LXC_SCRIPT="$SCRIPT_DIR/03-create-lxc.sh"
 
-# Safe 03-create-lxc.sh with automatic template checks
+# Overwrite 03-create-lxc.sh with safe template handling
 cat > "$LXC_SCRIPT" <<'EOF'
 #!/usr/bin/env bash
 set -e
@@ -110,12 +106,10 @@ echo "Using storage for templates: $TEMPLATE_STORAGE"
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# Template settings
-TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
-
 # Ensure template exists
+TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
 if ! pveam list | grep -q "$TEMPLATE_NAME"; then
-    echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox repository!"
+    echo "ERROR: Template $TEMPLATE_NAME not found!"
     exit 1
 fi
 
@@ -127,7 +121,7 @@ else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
-# Create LXC
+# Create LXC container
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
@@ -144,4 +138,5 @@ pct start "$CTID"
 echo "✅ Container $CTID created and started successfully."
 EOF
 
+chmod +x "$LXC_SCRIPT"
 run_script "$LXC_SCRIPT"
