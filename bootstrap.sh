@@ -11,7 +11,7 @@ mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
 # ------------------------------
-# Function to fetch scripts safely
+# Fetch a script safely
 # ------------------------------
 fetch_script() {
     local script_name="$1"
@@ -30,12 +30,11 @@ fetch_script() {
         exit 1
     fi
     echo "✅ Successfully downloaded $script_name"
-    # Only return the path
-    printf '%s' "$local_path"
+    echo "$local_path"
 }
 
 # ------------------------------
-# Run script (source or bash)
+# Run a script (source or bash)
 # ------------------------------
 run_script() {
     local script_path="$1"
@@ -76,10 +75,12 @@ echo "Starting CTID set to: $START_CID"
 CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
 export START_CID
 run_script "$CTID_SCRIPT" source
-echo "Next available CTID(s) to be used: $CTID"
+echo "Next available CTID: $CTID"
 
 # ------------------------------
 # Step 4: LXC creation
 # ------------------------------
 LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
-run_script "$LXC_SCRIPT" bash
+export ZFS_POOL
+export CTID
+run_script "$LXC_SCRIPT"
