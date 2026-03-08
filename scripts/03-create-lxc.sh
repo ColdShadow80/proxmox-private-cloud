@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
+# ------------------------------
+# Validate required variables
+# ------------------------------
+: "${ZFS_POOL:?ZFS_POOL must be set}"
+: "${CTID:?CTID must be set}"
+
 echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-# Validate required variables
-if [ -z "$CTID" ]; then
-    echo "ERROR: CTID not defined. Run 01-detect-ctid.sh first."
-    exit 1
-fi
-if [ -z "$ZFS_POOL" ]; then
-    echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
-    exit 1
-fi
-
-LXC_HOSTNAME="homelab-${CTID}"
-echo "Using starting CTID: $CTID"
-echo "Hostname will be: $LXC_HOSTNAME"
+echo "Using CTID: $CTID"
 
 # Find storage for templates
 TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
@@ -31,16 +25,16 @@ echo "Using storage for templates: $TEMPLATE_STORAGE"
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# Template name
+# Template
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
 
-# Check if template exists in list
+# Ensure template exists
 if ! pveam list | grep -q "$TEMPLATE_NAME"; then
     echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
     exit 1
 fi
 
-# Download template if missing
+# Download template if not present
 if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
@@ -49,7 +43,9 @@ else
 fi
 
 # Create LXC container
-echo "Creating LXC container ID $CTID..."
+LXC_HOSTNAME="homelab-${CTID}"
+echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
+
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
     --hostname "$LXC_HOSTNAME" \
     --rootfs "$ZFS_POOL/docker" \
