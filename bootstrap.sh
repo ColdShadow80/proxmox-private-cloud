@@ -25,21 +25,14 @@ fetch_script() {
     echo "------------------------------"
 
     curl -fsSL "$url" -o "$local_path"
-    if [ ! -f "$local_path" ]; then
-        echo "ERROR: Failed to download $script_name"
+
+    # Ensure fully downloaded and executable
+    if [ ! -s "$local_path" ]; then
+        echo "ERROR: Failed to download $script_name or file is empty"
         exit 1
     fi
 
-    # Convert line endings to Unix
-    if command -v dos2unix &>/dev/null; then
-        dos2unix "$local_path" &>/dev/null || true
-    else
-        sed -i 's/\r$//' "$local_path"
-    fi
-
-    # Make executable
     chmod +x "$local_path"
-
     echo "✅ Successfully downloaded $script_name"
     echo "$local_path"
 }
@@ -92,4 +85,6 @@ echo "Next available CTID(s) to be used: $CTID"
 # Step 4: LXC creation
 # ------------------------------
 LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
+export ZFS_POOL
+export CTID
 run_script "$LXC_SCRIPT"
