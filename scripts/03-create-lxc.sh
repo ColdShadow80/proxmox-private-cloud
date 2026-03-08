@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure CTID variable is defined
+# Ensure CTID is defined
 if [ -z "$CTID" ]; then
     echo "ERROR: CTID not defined. Run 01-detect-ctid.sh first."
     exit 1
 fi
 
-# Ensure ZFS_POOL variable is exported
+# Ensure ZFS_POOL is defined
 if [ -z "$ZFS_POOL" ]; then
     echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
     exit 1
@@ -24,8 +24,8 @@ if [ ! -f "$TEMPLATE_PATH" ]; then
     pveam download local "$TEMPLATE"
 fi
 
-# Container creation
-echo "Creating LXC container $CTID on pool $ZFS_POOL..."
+# Create container
+echo "Creating LXC container $CTID on ZFS pool $ZFS_POOL..."
 pct create "$CTID" local:vztmpl/"$TEMPLATE".tar.zst \
   --hostname docker-host \
   --cores 4 \
