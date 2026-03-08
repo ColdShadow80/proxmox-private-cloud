@@ -19,25 +19,23 @@ fi
 echo "Using storage for templates: $TEMPLATE_STORAGE"
 
 # ------------------------------
-# Update Proxmox template list
+# Update template list
 # ------------------------------
 echo "Updating Proxmox LXC template list..."
 pveam update
 
 # ------------------------------
-# Select template
+# Ensure template exists
 # ------------------------------
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
-
-# Ensure template exists in list
-if ! pveam list | awk '{print $2}' | grep -q "$TEMPLATE_NAME"; then
+if ! pveam list | awk '{print $1}' | grep -q "^$TEMPLATE_NAME$"; then
     echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
-    echo "Available templates:"
-    pveam list
     exit 1
 fi
 
-# Download template if not present
+# ------------------------------
+# Download template if missing
+# ------------------------------
 if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
