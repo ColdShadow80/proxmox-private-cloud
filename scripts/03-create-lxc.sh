@@ -1,32 +1,25 @@
 #!/usr/bin/env bash
 set -e
 
-# ------------------------------
-# Ensure CTID is set
-# ------------------------------
-if [ -z "$CTID" ]; then
-    echo "ERROR: CTID not defined. Run 01-detect-ctid.sh first."
-    exit 1
-fi
-
 echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-# ------------------------------
-# Use CTID and ZFS_POOL
-# ------------------------------
-CTID=${CTID:-${START_CID:-100}}
-echo "Using CTID: $CTID"
-
+# Validate required variables
+if [ -z "$CTID" ]; then
+    echo "ERROR: CTID not defined. Run 01-detect-ctid.sh first."
+    exit 1
+fi
 if [ -z "$ZFS_POOL" ]; then
     echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
     exit 1
 fi
 
-# ------------------------------
+LXC_HOSTNAME="homelab-${CTID}"
+echo "Using starting CTID: $CTID"
+echo "Hostname will be: $LXC_HOSTNAME"
+
 # Find storage for templates
-# ------------------------------
 TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
 if [ -z "$TEMPLATE_STORAGE" ]; then
     echo "ERROR: No suitable storage found for LXC templates!"
@@ -34,24 +27,20 @@ if [ -z "$TEMPLATE_STORAGE" ]; then
 fi
 echo "Using storage for templates: $TEMPLATE_STORAGE"
 
-# ------------------------------
 # Update template list
-# ------------------------------
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# ------------------------------
-# Ensure Debian 12 template exists
-# ------------------------------
+# Template name
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
+
+# Check if template exists in list
 if ! pveam list | grep -q "$TEMPLATE_NAME"; then
     echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
     exit 1
 fi
 
-# ------------------------------
 # Download template if missing
-# ------------------------------
 if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
@@ -59,12 +48,8 @@ else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
-# ------------------------------
 # Create LXC container
-# ------------------------------
-LXC_HOSTNAME="homelab-${CTID}"
-echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
-
+echo "Creating LXC container ID $CTID..."
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
     --hostname "$LXC_HOSTNAME" \
     --rootfs "$ZFS_POOL/docker" \
