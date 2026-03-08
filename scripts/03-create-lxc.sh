@@ -5,6 +5,7 @@ echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
+# Use starting CTID
 CTID=${START_CID:-${CTID:-100}}
 echo "Using starting CTID: $CTID"
 
@@ -20,15 +21,16 @@ echo "Using storage for templates: $TEMPLATE_STORAGE"
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# Ensure template exists
+# Correct template name
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
 
-if ! pveam list | grep -q "$TEMPLATE_NAME"; then
+# Check if template exists in remote list
+if ! pveam list | awk '{print $1}' | grep -qx "$TEMPLATE_NAME"; then
     echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
     exit 1
 fi
 
-# Download template if not present
+# Download template if not already present
 if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
