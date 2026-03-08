@@ -11,7 +11,7 @@ mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
 # ------------------------------
-# Fetch scripts safely
+# Function to fetch scripts safely
 # ------------------------------
 fetch_script() {
     local script_name="$1"
@@ -24,35 +24,51 @@ fetch_script() {
     echo "URL: $url"
     echo "------------------------------"
 
+    # Download script
     curl -fsSL "$url" -o "$local_path"
+
+    # Verify file exists
     if [ ! -f "$local_path" ]; then
         echo "ERROR: Failed to download $script_name"
         exit 1
     fi
+
+    # Fix line endings to Unix style
+    if command -v dos2unix >/dev/null 2>&1; then
+        dos2unix "$local_path" &>/dev/null || true
+    fi
+
+    # Make executable
     chmod +x "$local_path"
+
     echo "✅ Successfully downloaded and made executable: $script_name"
     echo "$local_path"
 }
 
 # ------------------------------
-# Run script
+# Function to run a script (bash or source)
 # ------------------------------
 run_script() {
     local script_path="$1"
-    shift
+    local mode="${2:-bash}"
+
     echo ""
     echo "------------------------------"
     echo "Running script: $(basename "$script_path")"
     echo "------------------------------"
-    "$script_path" "$@"
+
+    if [ "$mode" = "source" ]; then
+        source "$script_path"
+    else
+        bash "$script_path"
+    fi
 }
 
 # ------------------------------
 # Step 1: ZFS setup
 # ------------------------------
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
-ZFS_POOL=$(bash "$ZFS_SCRIPT")  # returns pool name
-echo "✅ ZFS_POOL set to: $ZFS_POOL"
+run_script "$ZFS_SCRIPT" bash
 
 # ------------------------------
 # Step 2: Determine starting CTID
@@ -69,11 +85,14 @@ echo "Starting CTID set to: $START_CID"
 # Step 3: Detect next free CTID
 # ------------------------------
 CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
-CTID=$(bash "$CTID_SCRIPT" "$START_CID")
+export START_CID
+run_script "$CTID_SCRIPT" bash
 echo "Next available CTID(s) to be used: $CTID"
 
 # ------------------------------
 # Step 4: LXC creation
 # ------------------------------
 LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
-ZFS_POOL="$ZFS_POOL" CTID="$CTID" bash "$LXC_SCRIPT"
+export ZFS_POOL
+export CTID
+run_script "$LXC_SCRIPT" bash
