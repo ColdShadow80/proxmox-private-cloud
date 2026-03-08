@@ -30,14 +30,16 @@ fetch_script() {
         exit 1
     fi
 
-    # Convert to Unix line endings to prevent 'No such file or directory'
+    # Convert line endings to Unix
     if command -v dos2unix &>/dev/null; then
         dos2unix "$local_path" &>/dev/null || true
     else
         sed -i 's/\r$//' "$local_path"
     fi
 
+    # Make executable
     chmod +x "$local_path"
+
     echo "✅ Successfully downloaded $script_name"
     echo "$local_path"
 }
@@ -62,41 +64,10 @@ run_script() {
 }
 
 # ------------------------------
-# Step 1: Embedded ZFS setup (reliable)
+# Step 1: ZFS setup
 # ------------------------------
-echo ""
-echo "------------------------------"
-echo "Running embedded ZFS setup..."
-echo "------------------------------"
-
-POOLS=($(zpool list -H -o name))
-NUM_POOLS=${#POOLS[@]}
-
-if [ "$NUM_POOLS" -eq 0 ]; then
-    echo "ERROR: No ZFS pools detected! Please create a ZFS pool first."
-    exit 1
-elif [ "$NUM_POOLS" -eq 1 ]; then
-    POOL="${POOLS[0]}"
-    echo "Only one ZFS pool found. Using pool: $POOL"
-else
-    echo "Multiple ZFS pools detected. Please select one to use:"
-    for i in "${!POOLS[@]}"; do
-        echo "[$i] ${POOLS[$i]}"
-    done
-    read -p "Enter the number of the pool to use: " POOL_INDEX
-    POOL="${POOLS[$POOL_INDEX]}"
-fi
-
-DATASET=docker
-if zfs list "$POOL/$DATASET" &>/dev/null; then
-    echo "ZFS dataset '$POOL/$DATASET' already exists."
-else
-    zfs create "$POOL/$DATASET"
-    echo "Created ZFS dataset '$POOL/$DATASET'."
-fi
-
-export ZFS_POOL="$POOL"
-echo "✅ ZFS setup completed using pool: $ZFS_POOL"
+ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
+run_script "$ZFS_SCRIPT" source
 
 # ------------------------------
 # Step 2: Determine starting CTID
