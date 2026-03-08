@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
@@ -29,6 +29,11 @@ fetch_script() {
         echo "ERROR: Failed to download $script_name"
         exit 1
     fi
+
+    # Fix permissions & line endings
+    chmod +x "$local_path"
+    command -v dos2unix &>/dev/null && dos2unix "$local_path" || true
+
     echo "✅ Successfully downloaded $script_name"
     echo "$local_path"
 }
@@ -61,13 +66,9 @@ run_script "$ZFS_SCRIPT" source
 # ------------------------------
 # Step 2: Determine starting CTID
 # ------------------------------
-read -rp 'Do you want to specify a starting container ID? [y/N]: ' START_CID_ANSWER
+read -p 'Do you want to specify a starting container ID? [y/N]: ' START_CID_ANSWER
 if [[ "$START_CID_ANSWER" =~ ^[Yy]$ ]]; then
-    read -rp 'Enter starting CTID number: ' START_CID
-    if ! [[ "$START_CID" =~ ^[0-9]+$ ]]; then
-        echo "Invalid number. Using default CTID 100."
-        START_CID=100
-    fi
+    read -p 'Enter starting CTID number: ' START_CID
 else
     START_CID=100
 fi
@@ -85,4 +86,6 @@ echo "Next available CTID(s) to be used: $CTID"
 # Step 4: LXC creation
 # ------------------------------
 LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
+export ZFS_POOL
+export CTID
 run_script "$LXC_SCRIPT"
