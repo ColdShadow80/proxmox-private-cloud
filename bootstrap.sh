@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-set -x  # Debug: show commands as they execute
+set -x  # Debug mode: show executed commands
 
 echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
@@ -12,7 +12,6 @@ echo "=============================="
 BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
 SCRIPT_DIR="/tmp/proxmox-scripts"
 
-# Ensure temp folder exists
 mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
@@ -37,11 +36,11 @@ fetch_script() {
         exit 1
     fi
 
-    # Show file info to stderr
+    # File info log to stderr
     >&2 ls -l "$local_path"
     >&2 echo "✅ Successfully downloaded $script_name"
 
-    # Output path to stdout only
+    # Only return the path on stdout
     echo "$local_path"
 }
 
@@ -50,11 +49,12 @@ fetch_script() {
 # ------------------------------
 run_script() {
     local script_path="$1"
-    local mode="${2:-bash}" # default run with bash
+    local mode="${2:-bash}" # default: bash
     >&2 echo ""
     >&2 echo "------------------------------"
-    >&2 echo "Running script: $(basename $script_path)"
+    >&2 echo "Running script: $(basename "$script_path")"
     >&2 echo "------------------------------"
+
     if [ "$mode" = "source" ]; then
         source "$script_path"
     else
@@ -63,14 +63,14 @@ run_script() {
 }
 
 # ------------------------------
-# Step 1: Setup ZFS (export $POOL)
+# Step 1: Setup ZFS (exports $POOL)
 # ------------------------------
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
 run_script "$ZFS_SCRIPT" source
 export ZFS_POOL="$POOL"
 
 # ------------------------------
-# Step 2: Detect next free CTID (export $CTID)
+# Step 2: Detect next free CTID (exports $CTID)
 # ------------------------------
 CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
 run_script "$CTID_SCRIPT" source
