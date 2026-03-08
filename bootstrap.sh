@@ -11,7 +11,7 @@ mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
 # ------------------------------
-# Function to fetch scripts safely
+# Fetch script safely, fix line endings
 # ------------------------------
 fetch_script() {
     local script_name="$1"
@@ -30,9 +30,11 @@ fetch_script() {
         exit 1
     fi
 
-    # Fix permissions & line endings
     chmod +x "$local_path"
-    command -v dos2unix &>/dev/null && dos2unix "$local_path" || true
+
+    if command -v dos2unix &>/dev/null; then
+        dos2unix "$local_path" || true
+    fi
 
     echo "✅ Successfully downloaded $script_name"
     echo "$local_path"
@@ -86,6 +88,4 @@ echo "Next available CTID(s) to be used: $CTID"
 # Step 4: LXC creation
 # ------------------------------
 LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
-export ZFS_POOL
-export CTID
 run_script "$LXC_SCRIPT"
