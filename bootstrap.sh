@@ -1,39 +1,50 @@
 #!/usr/bin/env bash
 set -e
-set -x  # Debug: show commands as they execute
+set -x  # Debug mode: shows all commands executed
 
 echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
 echo "=============================="
 
-# Base URL for scripts
+# ------------------------------
+# Base configuration
+# ------------------------------
 BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
-
-# Directory to download scripts temporarily
 SCRIPT_DIR="/tmp/proxmox-scripts"
+
+# Ensure temp folder exists
 mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
-# Function to fetch a script and verify it exists
+# ------------------------------
+# Function to fetch a script
+# ------------------------------
 fetch_script() {
     local script_name="$1"
     local url="$BASE_URL/$script_name"
     local local_path="$SCRIPT_DIR/$script_name"
+
     echo ""
     echo "------------------------------"
     echo "Fetching script: $script_name"
     echo "URL: $url"
     echo "------------------------------"
+
     curl -fsSL "$url" -o "$local_path"
     if [ ! -f "$local_path" ]; then
         echo "ERROR: Failed to download $script_name from $url"
         exit 1
     fi
-    echo "✅ Successfully downloaded $script_name to $local_path"
+
+    # Confirm file downloaded
+    ls -l "$local_path"
+    echo "✅ Successfully downloaded $script_name"
     echo "$local_path"
 }
 
-# Function to run a script in the current shell (source if needed)
+# ------------------------------
+# Function to run a script
+# ------------------------------
 run_script() {
     local script_path="$1"
     local mode="${2:-bash}" # default run with bash
@@ -49,14 +60,14 @@ run_script() {
 }
 
 # ------------------------------
-# Step 1: Setup ZFS (needs to export $POOL)
+# Step 1: Setup ZFS (export $POOL)
 # ------------------------------
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
 run_script "$ZFS_SCRIPT" source
 export ZFS_POOL="$POOL"
 
 # ------------------------------
-# Step 2: Detect next free CTID (needs to export $CTID)
+# Step 2: Detect next free CTID (export $CTID)
 # ------------------------------
 CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
 run_script "$CTID_SCRIPT" source
