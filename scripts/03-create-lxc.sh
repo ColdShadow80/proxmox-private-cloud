@@ -13,12 +13,61 @@ echo "------------------------------"
 
 echo "Using CTID: $CTID"
 
-# Find storage for templates
-TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
-if [ -z "$TEMPLATE_STORAGE" ]; then
-    echo "ERROR: No suitable storage found for LXC templates!"
+# Find storages that support container templates (vztmpl)
+TEMPLATE_STORAGES=()
+TEMPLATE_STORAGES_FREE=()
+
+while IFS= read -r storage_id; do
+    [ -z "$storage_id" ] && continue
+    if pveam list "$storage_id" >/dev/null 2>&1; then
+        free_kb=$(pvesm status | awk -v sid="$storage_id" '$1 == sid {print $6; exit}')
+        free_kb="${free_kb//[^0-9]/}"
+        if [ -z "$free_kb" ]; then
+            free_kb=0
+        fi
+        TEMPLATE_STORAGES+=("$storage_id")
+        TEMPLATE_STORAGES_FREE+=("$free_kb")
+    fi
+done < <(pvesm status | awk 'NR>1 {print $1}')
+
+if [ ${#TEMPLATE_STORAGES[@]} -eq 0 ]; then
+    echo "ERROR: No Proxmox storage supporting templates (vztmpl) was found."
+    echo "Please enable 'Container template' content on at least one storage (for example 'local')."
     exit 1
 fi
+
+if [ ${#TEMPLATE_STORAGES[@]} -eq 1 ]; then
+    TEMPLATE_STORAGE="${TEMPLATE_STORAGES[0]}"
+    echo "Only one template-capable storage found. Using: $TEMPLATE_STORAGE"
+else
+    echo "Multiple template-capable storages detected:"
+    best_index=0
+    best_free="${TEMPLATE_STORAGES_FREE[0]}"
+
+    for i in "${!TEMPLATE_STORAGES[@]}"; do
+        storage_name="${TEMPLATE_STORAGES[$i]}"
+        free_value="${TEMPLATE_STORAGES_FREE[$i]}"
+        echo "[$((i + 1))] $storage_name (free: ${free_value} KB)"
+        if [ "$free_value" -gt "$best_free" ]; then
+            best_free="$free_value"
+            best_index="$i"
+        fi
+    done
+
+    default_storage="${TEMPLATE_STORAGES[$best_index]}"
+    read -r -t 30 -p "Select template storage [1-${#TEMPLATE_STORAGES[@]}] within 30s (default: $default_storage): " storage_choice || true
+
+    if [ -z "$storage_choice" ]; then
+        TEMPLATE_STORAGE="$default_storage"
+        echo "No selection made in 30 seconds. Using storage with most free space: $TEMPLATE_STORAGE"
+    elif [[ "$storage_choice" =~ ^[0-9]+$ ]] && [ "$storage_choice" -ge 1 ] && [ "$storage_choice" -le ${#TEMPLATE_STORAGES[@]} ]; then
+        TEMPLATE_STORAGE="${TEMPLATE_STORAGES[$((storage_choice - 1))]}"
+    else
+        echo "Invalid storage selection: '$storage_choice'"
+        exit 1
+    fi
+fi
+
 echo "Using storage for templates: $TEMPLATE_STORAGE"
 
 # Update template list
