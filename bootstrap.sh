@@ -5,10 +5,12 @@ echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
 echo "=============================="
 
-BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
+REPO_REF="${REPO_REF:-main}"
+BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/${REPO_REF}/scripts"
 SCRIPT_DIR="/tmp/proxmox-scripts"
 mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
+echo "Using repository ref: $REPO_REF"
 
 # ------------------------------
 # Function to fetch scripts safely

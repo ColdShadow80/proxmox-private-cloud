@@ -15,6 +15,12 @@ From your **Proxmox host**, run the main bootstrap script:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/bootstrap.sh)"
 ```
 
+Optional: pin a branch/tag/commit for all fetched scripts:
+
+```bash
+REPO_REF=main bash -c "$(curl -fsSL https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/bootstrap.sh)"
+```
+
 Optional Cloudflare Tunnel setup (after the bootstrap):
 
 ```bash
