@@ -5,61 +5,43 @@ echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
 echo "=============================="
 
-BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
 SCRIPT_DIR="/tmp/proxmox-scripts"
 mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
 # ------------------------------
-# Fetch script safely
+# 02-create-zfs.sh embedded
 # ------------------------------
-fetch_script() {
-    local script_name="$1"
-    local url="$BASE_URL/$script_name"
-    local local_path="$SCRIPT_DIR/$script_name"
+echo "------------------------------"
+echo "Running embedded ZFS setup..."
+echo "------------------------------"
+# ZFS setup
+POOLS=($(zpool list -H -o name))
+NUM_POOLS=${#POOLS[@]}
+if [ $NUM_POOLS -eq 0 ]; then
+    echo "ERROR: No ZFS pools found!" >&2
+    exit 1
+elif [ $NUM_POOLS -eq 1 ]; then
+    POOL=${POOLS[0]}
+    echo "Only one ZFS pool found. Using pool: $POOL"
+else
+    echo "Available ZFS pools: ${POOLS[*]}"
+    read -p "Enter ZFS pool to use: " POOL
+fi
 
-    # Download silently
-    curl -fsSL "$url" -o "$local_path"
-    if [ ! -f "$local_path" ]; then
-        echo "ERROR: Failed to download $script_name" >&2
-        exit 1
-    fi
-    echo "✅ Successfully downloaded $script_name" >&2  # log to stderr
-
-    # Return only the path
-    printf '%s' "$local_path"
-}
-
-# ------------------------------
-# Run script (source or bash)
-# ------------------------------
-run_script() {
-    local script_path="$1"
-    local mode="${2:-bash}"
-
-    echo ""
-    echo "------------------------------"
-    echo "Running script: $(basename "$script_path")"
-    echo "------------------------------"
-
-    if [ "$mode" = "source" ]; then
-        source "$script_path"
-    else
-        bash "$script_path"
-    fi
-}
-
-# ------------------------------
-# Step 1: ZFS setup
-# ------------------------------
-ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
-run_script "$ZFS_SCRIPT" source
-
+DATASET=docker
+if zfs list "$POOL/$DATASET" &>/dev/null; then
+    echo "ZFS dataset '$POOL/$DATASET' already exists."
+else
+    zfs create "$POOL/$DATASET"
+    echo "Created ZFS dataset '$POOL/$DATASET'."
+fi
+export POOL
 export ZFS_POOL="$POOL"
-echo "✅ ZFS_POOL set to $ZFS_POOL"
+echo "✅ ZFS setup completed using pool: $POOL"
 
 # ------------------------------
-# Step 2: Determine starting CTID
+# Step 2: Starting CTID
 # ------------------------------
 read -p 'Do you want to specify a starting container ID? [y/N]: ' START_CID_ANSWER
 if [[ "$START_CID_ANSWER" =~ ^[Yy]$ ]]; then
@@ -70,34 +52,37 @@ fi
 echo "Starting CTID set to: $START_CID"
 
 # ------------------------------
-# Step 3: Detect next free CTID
+# 01-detect-ctid.sh embedded
 # ------------------------------
-CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
-export START_CID
-run_script "$CTID_SCRIPT" source
-echo "Next available CTID(s) to be used: $CTID"
+echo "------------------------------"
+echo "Detecting next free CTID(s)..."
+echo "------------------------------"
+
+USED_CTIDS=($(pct list 2>/dev/null | awk 'NR>1 {print $1}'))
+MAX_CTID=999
+FREE_CTIDS=()
+candidate=$START_CID
+while [ ${#FREE_CTIDS[@]} -lt 1 ] && [ $candidate -le $MAX_CTID ]; do
+    if [[ ! " ${USED_CTIDS[*]} " =~ " $candidate " ]]; then
+        FREE_CTIDS+=($candidate)
+    fi
+    ((candidate++))
+done
+
+CTID=${FREE_CTIDS[0]:-$START_CID}
+export CTID
+echo "Next available CTID: $CTID"
 
 # ------------------------------
-# Step 4: LXC creation
+# 03-create-lxc.sh embedded
 # ------------------------------
-LXC_SCRIPT="$SCRIPT_DIR/03-create-lxc.sh"
-
-# Overwrite 03-create-lxc.sh with safe template handling
-cat > "$LXC_SCRIPT" <<'EOF'
-#!/usr/bin/env bash
-set -e
-
 echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-CTID=${START_CID:-${CTID:-100}}
-echo "Using starting CTID: $CTID"
-
-# Find storage for templates
 TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
 if [ -z "$TEMPLATE_STORAGE" ]; then
-    echo "ERROR: No suitable storage found for LXC templates!"
+    echo "ERROR: No suitable storage found for LXC templates!" >&2
     exit 1
 fi
 echo "Using storage for templates: $TEMPLATE_STORAGE"
@@ -109,19 +94,13 @@ pveam update
 # Ensure template exists
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
 if ! pveam list | grep -q "$TEMPLATE_NAME"; then
-    echo "ERROR: Template $TEMPLATE_NAME not found!"
-    exit 1
-fi
-
-# Download template if not present
-if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
 else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
-# Create LXC container
+# Create LXC
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
@@ -136,7 +115,3 @@ pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
 
 pct start "$CTID"
 echo "✅ Container $CTID created and started successfully."
-EOF
-
-chmod +x "$LXC_SCRIPT"
-run_script "$LXC_SCRIPT"
