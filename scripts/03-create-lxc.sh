@@ -1,34 +1,36 @@
 #!/usr/bin/env bash
 set -e
 
+echo ""
 echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-CTID=${START_CID:-${CTID:-100}}
-echo "Using starting CTID: $CTID"
+# Use environment variables set by bootstrap.sh
+CTID=${CTID:-100}
+ZFS_POOL=${ZFS_POOL:-VM-Storage-1TB}
 
-# Detect local storage for templates (ZFSPool or dir)
-TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|zfspool|nfs/ {print $1; exit}')
+# Detect storage for templates
+TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
 if [ -z "$TEMPLATE_STORAGE" ]; then
     echo "ERROR: No suitable storage found for LXC templates!"
     exit 1
 fi
 echo "Using storage for templates: $TEMPLATE_STORAGE"
 
-# Update Proxmox template list
+# Update template list
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# Get exact template name from Proxmox repo
-TEMPLATE_NAME=$(pveam available | awk '/debian-12-standard/ {print $1; exit}')
+# Find latest Debian 12 template dynamically
+TEMPLATE_NAME=$(pveam available | grep -m1 "debian-12-standard" | awk '{print $1}')
 if [ -z "$TEMPLATE_NAME" ]; then
-    echo "ERROR: Debian 12 LXC template not found in Proxmox repository!"
+    echo "ERROR: Debian 12 template not found in Proxmox repository!"
     exit 1
 fi
 echo "Using template: $TEMPLATE_NAME"
 
-# Download template if not already present
+# Download template if not present
 if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
@@ -36,10 +38,9 @@ else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
-# Create container
+# Create LXC container
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
-
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
     --hostname "$LXC_HOSTNAME" \
     --rootfs "$ZFS_POOL/docker" \
