@@ -11,7 +11,7 @@ mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
 # ------------------------------
-# Function to fetch scripts safely
+# Fetch script safely
 # ------------------------------
 fetch_script() {
     local script_name="$1"
@@ -29,9 +29,10 @@ fetch_script() {
         echo "ERROR: Failed to download $script_name" >&2
         exit 1
     fi
+    echo "✅ Successfully downloaded $script_name"
 
-    # Return path
-    printf '%s\n' "$local_path"
+    # Only return the file path, no extra echo
+    printf '%s' "$local_path"
 }
 
 # ------------------------------
@@ -59,8 +60,10 @@ run_script() {
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
 run_script "$ZFS_SCRIPT" source
 
+echo "✅ ZFS_POOL set to $ZFS_POOL"
+
 # ------------------------------
-# Step 2: Determine starting CTID
+# Step 2: Ask user for starting CTID
 # ------------------------------
 read -p 'Do you want to specify a starting container ID? [y/N]: ' START_CID_ANSWER
 if [[ "$START_CID_ANSWER" =~ ^[Yy]$ ]]; then
@@ -83,8 +86,62 @@ echo "Next available CTID(s) to be used: $CTID"
 # ------------------------------
 LXC_SCRIPT="$SCRIPT_DIR/03-create-lxc.sh"
 
-# Fetch or overwrite 03-create-lxc.sh
-fetch_script "03-create-lxc.sh" >/dev/null
-chmod +x "$LXC_SCRIPT"
+# Safe 03-create-lxc.sh with automatic template checks
+cat > "$LXC_SCRIPT" <<'EOF'
+#!/usr/bin/env bash
+set -e
+
+echo "------------------------------"
+echo "Creating LXC container(s)..."
+echo "------------------------------"
+
+CTID=${START_CID:-${CTID:-100}}
+echo "Using starting CTID: $CTID"
+
+# Find storage for templates
+TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
+if [ -z "$TEMPLATE_STORAGE" ]; then
+    echo "ERROR: No suitable storage found for LXC templates!"
+    exit 1
+fi
+echo "Using storage for templates: $TEMPLATE_STORAGE"
+
+# Update template list
+echo "Updating Proxmox LXC template list..."
+pveam update
+
+# Template settings
+TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
+
+# Ensure template exists
+if ! pveam list | grep -q "$TEMPLATE_NAME"; then
+    echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox repository!"
+    exit 1
+fi
+
+# Download template if not present
+if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
+    echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
+    pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
+else
+    echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
+fi
+
+# Create LXC
+LXC_HOSTNAME="homelab-${CTID}"
+echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
+pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
+    --hostname "$LXC_HOSTNAME" \
+    --rootfs "$ZFS_POOL/docker" \
+    --cores 2 \
+    --memory 2048 \
+    --swap 512 \
+    --net0 name=eth0,bridge=vmbr0,ip=dhcp \
+    --password "changeme" \
+    --features nesting=1
+
+pct start "$CTID"
+echo "✅ Container $CTID created and started successfully."
+EOF
 
 run_script "$LXC_SCRIPT"
