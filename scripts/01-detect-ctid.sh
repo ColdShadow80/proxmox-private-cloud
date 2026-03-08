@@ -5,14 +5,10 @@ echo "------------------------------"
 echo "Detecting next free CTID(s)..."
 echo "------------------------------"
 
-# Function to get all used CTIDs
-get_used_ctids() {
-    pct list 2>/dev/null | awk 'NR>1 {print $1}'
-}
-
-USED_CTIDS=($(get_used_ctids))
+# Get all used CTIDs
+USED_CTIDS=($(pct list 2>/dev/null | awk 'NR>1 {print $1}'))
 MAX_CTID=999
-NUM_CONTAINERS=1  # Change this if you plan to deploy multiple at once
+NUM_CONTAINERS=1  # Can adjust if deploying multiple containers
 
 # Ask user if they want to set a starting CTID
 read -rp "Do you want to set a starting container/VM number? [y/N]: " use_start
@@ -27,28 +23,18 @@ if [[ "$use_start" =~ ^[Yy]$ ]]; then
         fi
     done
 else
-    # Default behavior: find first free CTID starting from 100
     START_CTID=100
 fi
 
-# Function to find the next free CTID starting from START_CTID
-find_next_free_ctids() {
-    local start=$1
-    local needed=$2
-    local ctids=()
-    local candidate=$start
-
-    while [ ${#ctids[@]} -lt "$needed" ] && [ "$candidate" -le "$MAX_CTID" ]; do
-        if ! [[ " ${USED_CTIDS[@]} " =~ " $candidate " ]]; then
-            ctids+=($candidate)
-        fi
-        ((candidate++))
-    done
-
-    echo "${ctids[@]}"
-}
-
-FREE_CTIDS=($(find_next_free_ctids $START_CTID $NUM_CONTAINERS))
+# Find the next free CTIDs starting from START_CTID
+FREE_CTIDS=()
+candidate=$START_CTID
+while [ ${#FREE_CTIDS[@]} -lt "$NUM_CONTAINERS" ] && [ "$candidate" -le "$MAX_CTID" ]; do
+    if ! [[ " ${USED_CTIDS[@]} " =~ " $candidate " ]]; then
+        FREE_CTIDS+=($candidate)
+    fi
+    ((candidate++))
+done
 
 if [ ${#FREE_CTIDS[@]} -eq 0 ]; then
     echo "ERROR: No free CTID found starting from $START_CTID"
@@ -56,4 +42,4 @@ if [ ${#FREE_CTIDS[@]} -eq 0 ]; then
 fi
 
 echo "Next available container ID(s) to be used: ${FREE_CTIDS[@]}"
-export CTID="${FREE_CTIDS[0]}"  # Export the first one for bootstrap
+export CTID="${FREE_CTIDS[0]}"
