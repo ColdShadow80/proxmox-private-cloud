@@ -1,12 +1,28 @@
 #!/usr/bin/env bash
 set -e
 
+# ------------------------------
+# Ensure CTID is set
+# ------------------------------
+if [ -z "$CTID" ]; then
+    echo "ERROR: CTID not defined. Run 01-detect-ctid.sh first."
+    exit 1
+fi
+
 echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-CTID=${START_CID:-${CTID:-100}}
-echo "Using starting CTID: $CTID"
+# ------------------------------
+# Use CTID and ZFS_POOL
+# ------------------------------
+CTID=${CTID:-${START_CID:-100}}
+echo "Using CTID: $CTID"
+
+if [ -z "$ZFS_POOL" ]; then
+    echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
+    exit 1
+fi
 
 # ------------------------------
 # Find storage for templates
@@ -25,10 +41,10 @@ echo "Updating Proxmox LXC template list..."
 pveam update
 
 # ------------------------------
-# Ensure template exists
+# Ensure Debian 12 template exists
 # ------------------------------
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
-if ! pveam list | awk '{print $1}' | grep -q "^$TEMPLATE_NAME$"; then
+if ! pveam list | grep -q "$TEMPLATE_NAME"; then
     echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
     exit 1
 fi
