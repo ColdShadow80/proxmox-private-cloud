@@ -271,3 +271,39 @@ Traefik: https://traefik.homelab.example.com
 Dashboard: https://dashboard.homelab.example.com
 
 ```
+
+## 🔁 GitOps / Updates
+
+- Containers auto-update via Watchtower.
+
+- Infrastructure updates via git pull and docker compose up -d.
+
+- Optional services can be added via stacks/apps/ overrides.
+
+## 💾 Backup Strategy
+
+1. Proxmox scheduled backups
+
+2. ZFS snapshots for Docker volumes
+
+3. Optional offsite backups using Restic or similar
+
+## 🔐 Security Recommendations
+
+- Use Authentik SSO for all services.
+
+- Enable TLS/HTTPS with Traefik.
+
+- Restrict access to dashboards and Docker management.
+
+- Configure firewall or VPN if exposing services publicly.
+
+## 📜 License
+
+MIT License
+
+## 🤝 Contributing
+
+- Pull requests welcome.
+
+- Add new services, dashboards, or GitOps enhancements.
