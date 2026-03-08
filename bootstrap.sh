@@ -164,7 +164,7 @@ echo "Copying Dashboard deployment script to container $CTID..."
 pct push "$CTID" "$DASHBOARD_SCRIPT" /tmp/08-deploy-dashboard.sh
 echo "Executing Dashboard deployment inside container..."
 pct exec "$CTID" -- bash /tmp/08-deploy-dashboard.sh
-echo "✅ Dashboard deployed in container $CTID"
+echo "✅ Dashboard step completed in container $CTID"
 
 # ------------------------------
 # Step 9: Summary
