@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-echo ""
 echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-# Use environment variables set by bootstrap.sh
-CTID=${CTID:-100}
-ZFS_POOL=${ZFS_POOL:-VM-Storage-1TB}
+# Use CTID from environment or fallback
+CTID=${START_CID:-${CTID:-100}}
+echo "Using starting CTID: $CTID"
 
-# Detect storage for templates
+# Detect storage automatically (prefer dir, nfs, zfspool)
 TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
 if [ -z "$TEMPLATE_STORAGE" ]; then
     echo "ERROR: No suitable storage found for LXC templates!"
@@ -22,15 +21,16 @@ echo "Using storage for templates: $TEMPLATE_STORAGE"
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# Find latest Debian 12 template dynamically
-TEMPLATE_NAME=$(pveam available | grep -m1 "debian-12-standard" | awk '{print $1}')
-if [ -z "$TEMPLATE_NAME" ]; then
-    echo "ERROR: Debian 12 template not found in Proxmox repository!"
+# Template to use
+TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
+
+# Verify template exists in repository
+if ! pveam list | grep -q "$TEMPLATE_NAME"; then
+    echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox repository!"
     exit 1
 fi
-echo "Using template: $TEMPLATE_NAME"
 
-# Download template if not present
+# Download template if not already present
 if ! ls "$TEMPLATE_STORAGE"/vztmpl/*"$TEMPLATE_NAME"* &>/dev/null; then
     echo "Downloading template $TEMPLATE_NAME to storage $TEMPLATE_STORAGE..."
     pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_NAME"
@@ -38,7 +38,7 @@ else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
-# Create LXC container
+# Create container
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
