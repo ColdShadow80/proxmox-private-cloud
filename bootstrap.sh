@@ -29,6 +29,14 @@ fetch_script() {
         echo "ERROR: Failed to download $script_name"
         exit 1
     fi
+
+    # Convert to Unix line endings to prevent 'No such file or directory'
+    if command -v dos2unix &>/dev/null; then
+        dos2unix "$local_path" &>/dev/null || true
+    else
+        sed -i 's/\r$//' "$local_path"
+    fi
+
     chmod +x "$local_path"
     echo "✅ Successfully downloaded $script_name"
     echo "$local_path"
@@ -54,9 +62,8 @@ run_script() {
 }
 
 # ------------------------------
-# Step 1: ZFS setup
+# Step 1: Embedded ZFS setup (reliable)
 # ------------------------------
-# We embed ZFS setup to fix previous "No such file or directory" issues
 echo ""
 echo "------------------------------"
 echo "Running embedded ZFS setup..."
