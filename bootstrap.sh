@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -x  # Debug: show commands as they execute
 
 echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
@@ -11,8 +12,9 @@ BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/m
 # Directory to download scripts temporarily
 SCRIPT_DIR="/tmp/proxmox-scripts"
 mkdir -p "$SCRIPT_DIR"
+echo "Temporary script directory: $SCRIPT_DIR"
 
-# Function to fetch a script
+# Function to fetch a script and verify it exists
 fetch_script() {
     local script_name="$1"
     local url="$BASE_URL/$script_name"
@@ -23,35 +25,41 @@ fetch_script() {
     echo "URL: $url"
     echo "------------------------------"
     curl -fsSL "$url" -o "$local_path"
-    if [ $? -ne 0 ]; then
-        echo "ERROR: Failed to fetch $script_name"
+    if [ ! -f "$local_path" ]; then
+        echo "ERROR: Failed to download $script_name from $url"
         exit 1
     fi
+    echo "✅ Successfully downloaded $script_name to $local_path"
     echo "$local_path"
 }
 
-# Function to run a script in a subshell
+# Function to run a script in the current shell (source if needed)
 run_script() {
     local script_path="$1"
+    local mode="${2:-bash}" # default run with bash
     echo ""
     echo "------------------------------"
     echo "Running script: $(basename $script_path)"
     echo "------------------------------"
-    bash "$script_path"
+    if [ "$mode" = "source" ]; then
+        source "$script_path"
+    else
+        bash "$script_path"
+    fi
 }
 
 # ------------------------------
-# Step 1: Setup ZFS
+# Step 1: Setup ZFS (needs to export $POOL)
 # ------------------------------
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
-source "$ZFS_SCRIPT"   # Source so $POOL is exported in parent shell
+run_script "$ZFS_SCRIPT" source
 export ZFS_POOL="$POOL"
 
 # ------------------------------
-# Step 2: Detect next free CTID
+# Step 2: Detect next free CTID (needs to export $CTID)
 # ------------------------------
 CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
-source "$CTID_SCRIPT"  # Source so $CTID is exported in parent shell
+run_script "$CTID_SCRIPT" source
 export CTID
 echo "Next container ID to use: $CTID"
 
