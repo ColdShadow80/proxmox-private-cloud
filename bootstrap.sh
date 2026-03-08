@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-REPO="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
+REPO="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main"
 
 echo "Starting Proxmox GitOps Homelab Deployment..."
 
