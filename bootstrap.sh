@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-set -x  # Debug mode: shows all commands executed
+set -x  # Debug: show commands as they execute
 
 echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
@@ -24,21 +24,24 @@ fetch_script() {
     local url="$BASE_URL/$script_name"
     local local_path="$SCRIPT_DIR/$script_name"
 
-    echo ""
-    echo "------------------------------"
-    echo "Fetching script: $script_name"
-    echo "URL: $url"
-    echo "------------------------------"
+    # Log to stderr
+    >&2 echo ""
+    >&2 echo "------------------------------"
+    >&2 echo "Fetching script: $script_name"
+    >&2 echo "URL: $url"
+    >&2 echo "------------------------------"
 
     curl -fsSL "$url" -o "$local_path"
     if [ ! -f "$local_path" ]; then
-        echo "ERROR: Failed to download $script_name from $url"
+        >&2 echo "ERROR: Failed to download $script_name from $url"
         exit 1
     fi
 
-    # Confirm file downloaded
-    ls -l "$local_path"
-    echo "✅ Successfully downloaded $script_name"
+    # Show file info to stderr
+    >&2 ls -l "$local_path"
+    >&2 echo "✅ Successfully downloaded $script_name"
+
+    # Output path to stdout only
     echo "$local_path"
 }
 
@@ -48,10 +51,10 @@ fetch_script() {
 run_script() {
     local script_path="$1"
     local mode="${2:-bash}" # default run with bash
-    echo ""
-    echo "------------------------------"
-    echo "Running script: $(basename $script_path)"
-    echo "------------------------------"
+    >&2 echo ""
+    >&2 echo "------------------------------"
+    >&2 echo "Running script: $(basename $script_path)"
+    >&2 echo "------------------------------"
     if [ "$mode" = "source" ]; then
         source "$script_path"
     else
