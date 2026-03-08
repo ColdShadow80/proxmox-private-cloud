@@ -21,6 +21,12 @@ Optional: pin a branch/tag/commit for all fetched scripts:
 REPO_REF=main bash -c "$(curl -fsSL https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/bootstrap.sh)"
 ```
 
+**What the bootstrap does:**
+- Creates an LXC container with Docker
+- Clones this repo to `/opt/gitops` inside the container
+- Deploys services from `stacks/homelab-stack.yml` (auto-copies from `.example` if needed)
+- Prompts for optional network config, Cloudflare tunnel, and dashboard
+
 Optional Cloudflare Tunnel setup (after the bootstrap):
 
 ```bash
@@ -118,9 +124,42 @@ proxmox-private-cloud/
 │   ├── 08-deploy-dashboard.sh
 │   └── 09-summary.sh
 └── stacks/
-    ├── homelab-stack.yml
-    └── apps/                  # Optional per-app overrides
+    ├── homelab-stack.yml          # Your customized service stack
+    └── homelab-stack.yml.example  # Template with example services
 ```
+
+**Customizing Your Stack:**
+Before first run, copy the example and customize your services:
+```bash
+cp stacks/homelab-stack.yml.example stacks/homelab-stack.yml
+# Edit homelab-stack.yml to enable/disable services
+```
+
+The bootstrap script will use `homelab-stack.yml` if present, or automatically copy from `.example` if not.
+
+## 🔐 Security Best Practices
+
+**Important:** Never commit sensitive information to this repository.
+
+- `stacks/homelab-stack.yml` is gitignored - customize it locally without committing passwords/tokens
+- Use `.example` files for templates, never put real credentials in them
+- Keep Cloudflare tunnel credentials (`*-tunnel.json`) local
+- Store secrets in environment variables or separate `.env` files (also gitignored)
+- The default LXC password `changeme` should be changed immediately after container creation
+
+**Files automatically ignored by `.gitignore`:**
+- `*.env`, `.env.*` - Environment variable files
+- `*-credentials.json`, `*-tunnel.json` - Authentication files
+- `stacks/homelab-stack.yml` - Your customized service stack
+- SSL certificates and private keys
+
+📖 **See [SECURITY.md](SECURITY.md) for comprehensive security guidelines.**
+
+**Pre-commit security check:**
+```bash
+bash scripts/security-check.sh
+```
+This script scans staged files for potential sensitive data before committing.
 
 ## 🔧 How Each Script Works
 ### bootstrap.sh
@@ -201,7 +240,8 @@ systemctl enable docker
 
 ### 06-deploy-gitops.sh
 
-Clones the repository into /opt/gitops (inside container) and deploys all services using Docker Compose.
+Clones the repository into /opt/gitops (inside container) and deploys services from stacks/homelab-stack.yml using Docker Compose.
+By default uses the proxmox-private-cloud repository. Override with `GITOPS_REPO` environment variable.
 
 ```bash
 git clone https://github.com/ColdShadow80/proxmox-private-cloud.git /opt/gitops
@@ -246,9 +286,11 @@ bash scripts/07a-cloudflared-setup.sh
 
 ### 08-deploy-dashboard.sh
 
-Deploys a visual homelab dashboard inside the container at /opt/dashboard.
+Deploys a custom dashboard if `DASHBOARD_REPO` environment variable is set.
+Otherwise skips dashboard deployment (optional step).
 
 ```bash
+# Only runs if DASHBOARD_REPO is configured
 docker run -d \
  --name homelab-dashboard \
  -p 9000:80 \

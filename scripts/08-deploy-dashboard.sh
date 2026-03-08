@@ -9,19 +9,26 @@ echo "------------------------------"
 DASHBOARD_ROOT="/opt/dashboard"
 mkdir -p "$DASHBOARD_ROOT"
 
-# Example: deploy dashboard using docker-compose
-DASHBOARD_REPO="https://github.com/ColdShadow80/homelab-dashboard.git"
-if [ ! -d "$DASHBOARD_ROOT/.git" ]; then
-    git clone "$DASHBOARD_REPO" "$DASHBOARD_ROOT"
-else
-    echo "Dashboard repo already exists. Pulling latest changes..."
-    git -C "$DASHBOARD_ROOT" pull
-fi
+# Check if custom dashboard repo is specified, otherwise create simple default
+DASHBOARD_REPO="${DASHBOARD_REPO:-}"
 
-DOCKER_COMPOSE_FILE="$DASHBOARD_ROOT/docker-compose.yml"
-if [ -f "$DOCKER_COMPOSE_FILE" ]; then
-    docker compose -f "$DOCKER_COMPOSE_FILE" up -d
-    echo "✅ Dashboard deployed on $ZFS_POOL/dashboard"
+if [ -n "$DASHBOARD_REPO" ]; then
+    if [ ! -d "$DASHBOARD_ROOT/.git" ]; then
+        echo "Cloning dashboard repository: $DASHBOARD_REPO"
+        git clone "$DASHBOARD_REPO" "$DASHBOARD_ROOT"
+    else
+        echo "Dashboard repo already exists. Pulling latest changes..."
+        git -C "$DASHBOARD_ROOT" pull
+    fi
+    
+    DOCKER_COMPOSE_FILE="$DASHBOARD_ROOT/docker-compose.yml"
+    if [ -f "$DOCKER_COMPOSE_FILE" ]; then
+        docker compose -f "$DOCKER_COMPOSE_FILE" up -d
+        echo "✅ Dashboard deployed"
+    else
+        echo "WARNING: docker-compose.yml not found in $DASHBOARD_ROOT. Skipping dashboard deployment."
+    fi
 else
-    echo "WARNING: docker-compose.yml not found in $DASHBOARD_ROOT. Skipping dashboard deployment."
+    echo "No DASHBOARD_REPO configured. Skipping dashboard deployment."
+    echo "To deploy a custom dashboard, set DASHBOARD_REPO environment variable."
 fi

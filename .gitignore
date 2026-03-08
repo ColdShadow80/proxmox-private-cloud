@@ -1,0 +1,63 @@
+# Sensitive configuration files
+*.env
+.env.*
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*-credentials.json
+*-tunnel.json
+homelab-tunnel.json
+cloudflared-credentials.json
+
+# User-specific configurations (customize without committing)
+stacks/homelab-stack.yml
+
+# Secrets and authentication
+*secret*
+*password*
+*token*
+!**/*.example
+
+# Local development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Docker volumes and data
+docker-data/
+volumes/
+
+# SSL/TLS certificates (except examples)
+letsencrypt/
+certs/
+*.crt
+*.key
+*.pem
+
+# Cloudflare tunnel configs with credentials
+cloudflared/config.yml
+cloudflared/credentials.json
+
+# User customizations
+config/local.yml
+config/secrets.yml

@@ -140,6 +140,7 @@ echo "Using storage for container rootfs: $ROOTFS_STORAGE (${ROOTFS_SIZE_GB}G)"
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
 
+# NOTE: Default password is "changeme" - you should change it after first login
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
     --hostname "$LXC_HOSTNAME" \
     --rootfs "$ROOTFS_STORAGE:${ROOTFS_SIZE_GB}" \
@@ -152,3 +153,4 @@ pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
 
 pct start "$CTID"
 echo "✅ Container $CTID created and started successfully."
+echo "⚠️  Default root password is 'changeme' - please change it with: pct exec $CTID -- passwd"
