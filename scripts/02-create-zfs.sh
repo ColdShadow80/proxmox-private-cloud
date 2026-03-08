@@ -1,62 +1,63 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 echo "------------------------------"
-echo "Checking available ZFS pools..."
+echo "Running embedded ZFS setup..."
 echo "------------------------------"
 
-# Detect all online ZFS pools
+# Function to display ZFS pool information
+show_pools_info() {
+    echo "Available ZFS pools:"
+    printf "%-3s %-20s %-10s %-10s %-10s %-10s\n" "No" "Pool" "Size" "Allocated" "Free" "Health"
+    local i=1
+    for pool in "${POOLS[@]}"; do
+        local size allocated free health
+        size=$(zpool list -H -o size "$pool")
+        allocated=$(zpool list -H -o allocated "$pool")
+        free=$(zpool list -H -o free "$pool")
+        health=$(zpool list -H -o health "$pool")
+        printf "%-3s %-20s %-10s %-10s %-10s %-10s\n" "$i" "$pool" "$size" "$allocated" "$free" "$health"
+        ((i++))
+    done
+}
+
+# List all available ZFS pools
 POOLS=($(zpool list -H -o name))
 NUM_POOLS=${#POOLS[@]}
 
 if [ "$NUM_POOLS" -eq 0 ]; then
-    echo "ERROR: No ZFS pools detected on this server."
-    echo "A ZFS pool is required to create the Docker dataset."
-    echo "Please create a ZFS pool first and re-run this script."
+    echo "ERROR: No ZFS pools detected. Please create a pool first."
     exit 1
-fi
-
-# Function to display pool info
-show_pool_info() {
-    local index=$1
-    local name=$2
-    local size_free=$(zpool list -H -o size,free "$name")
-    local size=$(echo $size_free | awk '{print $1}')
-    local free=$(echo $size_free | awk '{print $2}')
-    echo "$index) $name — Size: $size, Free: $free"
-}
-
-# Select pool
-if [ "$NUM_POOLS" -eq 1 ]; then
+elif [ "$NUM_POOLS" -eq 1 ]; then
     POOL="${POOLS[0]}"
     echo "Only one ZFS pool found. Using pool: $POOL"
 else
+    # Show pool info before selection
+    show_pools_info
+    echo ""
     echo "Multiple ZFS pools detected. Please select one to use:"
-    for i in "${!POOLS[@]}"; do
-        show_pool_info $((i+1)) "${POOLS[$i]}"
-    done
-
-    while true; do
-        read -rp "Enter the number of the pool to use: " selection
-        if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "$NUM_POOLS" ]; then
-            POOL="${POOLS[$((selection-1))]}"
+    select POOL in "${POOLS[@]}"; do
+        if [ -n "$POOL" ]; then
+            echo "Selected ZFS pool: $POOL"
             break
         else
-            echo "Invalid selection. Please enter a number between 1 and $NUM_POOLS."
+            echo "Invalid selection. Please try again."
         fi
     done
-    echo "You selected ZFS pool: $POOL"
 fi
 
-# Create Docker dataset if it does not exist
-DATASET=docker
+# Dataset name
+DATASET="docker"
+
+# Check if dataset exists
 if zfs list "$POOL/$DATASET" &>/dev/null; then
     echo "ZFS dataset '$POOL/$DATASET' already exists."
 else
     echo "Creating ZFS dataset '$POOL/$DATASET'..."
     zfs create "$POOL/$DATASET"
-    echo "ZFS dataset created: $POOL/$DATASET"
 fi
 
+# Export pool for use by other scripts
 export POOL
-echo "✅ ZFS setup completed using pool: $POOL"
+export ZFS_POOL="$POOL"
+echo "✅ ZFS setup completed using pool: $ZFS_POOL"
