@@ -35,5 +35,4 @@ pct create "$CTID" local:vztmpl/"$TEMPLATE".tar.zst \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp
 
 pct start "$CTID"
-
 echo "✅ LXC container $CTID created and started on ZFS pool: $ZFS_POOL"

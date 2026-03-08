@@ -58,4 +58,5 @@ else
     echo "ZFS dataset created: $POOL/$DATASET"
 fi
 
+export POOL
 echo "✅ ZFS setup completed using pool: $POOL"
