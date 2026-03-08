@@ -5,20 +5,13 @@ echo "=============================="
 echo "Starting Proxmox GitOps Homelab Deployment..."
 echo "=============================="
 
-# ------------------------------
-# Temporary script directory
-# ------------------------------
+BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
 SCRIPT_DIR="/tmp/proxmox-scripts"
 mkdir -p "$SCRIPT_DIR"
 echo "Temporary script directory: $SCRIPT_DIR"
 
 # ------------------------------
-# Base URL for scripts
-# ------------------------------
-BASE_URL="https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/scripts"
-
-# ------------------------------
-# Fetch script safely
+# Function to fetch scripts safely
 # ------------------------------
 fetch_script() {
     local script_name="$1"
@@ -32,23 +25,25 @@ fetch_script() {
     echo "------------------------------"
 
     curl -fsSL "$url" -o "$local_path"
-
     if [ ! -f "$local_path" ]; then
         echo "ERROR: Failed to download $script_name"
         exit 1
     fi
 
+    # Fix line endings and permissions immediately
+    dos2unix "$local_path" &>/dev/null || true
     chmod +x "$local_path"
+
     echo "✅ Successfully downloaded and made executable: $script_name"
     echo "$local_path"
 }
 
 # ------------------------------
-# Run script safely
+# Run script (source or bash)
 # ------------------------------
 run_script() {
     local script_path="$1"
-    local mode="${2:-bash}"  # default: run in bash
+    local mode="${2:-bash}"
 
     echo ""
     echo "------------------------------"
@@ -67,7 +62,6 @@ run_script() {
 # ------------------------------
 ZFS_SCRIPT=$(fetch_script "02-create-zfs.sh")
 run_script "$ZFS_SCRIPT" source
-export ZFS_POOL  # make sure it's exported for other scripts
 
 # ------------------------------
 # Step 2: Determine starting CTID
@@ -79,18 +73,19 @@ else
     START_CID=100
 fi
 echo "Starting CTID set to: $START_CID"
-export START_CID
 
 # ------------------------------
 # Step 3: Detect next free CTID
 # ------------------------------
 CTID_SCRIPT=$(fetch_script "01-detect-ctid.sh")
+export START_CID
 run_script "$CTID_SCRIPT" source
-export CTID
 echo "Next available CTID(s) to be used: $CTID"
 
 # ------------------------------
-# Step 4: Create LXC container
+# Step 4: LXC creation
 # ------------------------------
 LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
+export ZFS_POOL
+export CTID
 run_script "$LXC_SCRIPT"
