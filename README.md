@@ -156,6 +156,7 @@ zfs create $POOL/$DATASET
 Creates an LXC container with nested virtualization enabled and resources assigned.
 Prompts for Debian major version (default: 12) and automatically selects the latest matching Proxmox template.
 For template storage: aborts if none exist, auto-uses it if only one exists, or prompts selection when multiple are available (30-second timeout, then defaults to the storage with most free space).
+Container rootfs is created on a Proxmox storage that supports rootdir content, using `storage:size` syntax (default size: 50G, override with `ROOTFS_SIZE_GB`).
 
 ```bash
 pct create $CTID local:vztmpl/debian-12-standard_12.3-1_amd64.tar.gz \

@@ -103,13 +103,46 @@ else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
+# Select storage for container rootfs (must support rootdir content)
+ROOTFS_SIZE_GB="${ROOTFS_SIZE_GB:-50}"
+ROOTFS_CANDIDATES=($(pvesm status --content rootdir 2>/dev/null | awk 'NR>1 {print $1}'))
+
+if [ ${#ROOTFS_CANDIDATES[@]} -eq 0 ]; then
+    echo "ERROR: No Proxmox storage supporting rootdir content found for container rootfs."
+    exit 1
+fi
+
+ROOTFS_STORAGE=""
+for candidate in "${ROOTFS_CANDIDATES[@]}"; do
+    if [ "$candidate" = "$ZFS_POOL" ]; then
+        ROOTFS_STORAGE="$candidate"
+        break
+    fi
+done
+
+if [ -z "$ROOTFS_STORAGE" ]; then
+    for candidate in "${ROOTFS_CANDIDATES[@]}"; do
+        if [ "$candidate" = "$TEMPLATE_STORAGE" ]; then
+            ROOTFS_STORAGE="$candidate"
+            break
+        fi
+    done
+fi
+
+if [ -z "$ROOTFS_STORAGE" ]; then
+    ROOTFS_STORAGE="${ROOTFS_CANDIDATES[0]}"
+    echo "WARNING: ZFS pool '$ZFS_POOL' is not configured as a Proxmox rootdir storage ID."
+fi
+
+echo "Using storage for container rootfs: $ROOTFS_STORAGE (${ROOTFS_SIZE_GB}G)"
+
 # Create LXC container
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
 
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE_NAME" \
     --hostname "$LXC_HOSTNAME" \
-    --rootfs "$ZFS_POOL/docker" \
+    --rootfs "$ROOTFS_STORAGE:${ROOTFS_SIZE_GB}" \
     --cores 2 \
     --memory 2048 \
     --swap 512 \
