@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure ZFS_POOL is defined
-if [ -z "$ZFS_POOL" ]; then
-    echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
-    exit 1
-fi
-
 echo "------------------------------"
 echo "Deploying GitOps homelab stack..."
 echo "------------------------------"
 
-# Define directories on ZFS pool
-GITOPS_ROOT="$ZFS_POOL/gitops"
+# Define directories for GitOps (container-local paths)
+GITOPS_ROOT="/opt/gitops"
 mkdir -p "$GITOPS_ROOT"
 
 # Example: clone GitOps repo (user can replace with own repo)

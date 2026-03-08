@@ -86,3 +86,97 @@ LXC_SCRIPT=$(fetch_script "03-create-lxc.sh")
 export ZFS_POOL
 export CTID
 run_script "$LXC_SCRIPT" bash
+
+# ------------------------------
+# Step 4: Configure network (optional - runs on host)
+# ------------------------------
+echo ""
+echo "------------------------------"
+echo "Step 4: Network configuration"
+echo "------------------------------"
+read -rp "Do you want to configure static IP for container $CTID? [y/N]: " configure_network
+if [[ "$configure_network" =~ ^[Yy]$ ]]; then
+    read -rp "Enter static IP (e.g., 192.168.1.50/24): " STATIC_IP
+    read -rp "Enter gateway (e.g., 192.168.1.1): " GATEWAY
+    echo "Configuring network for container $CTID..."
+    pct set "$CTID" --net0 "name=eth0,bridge=vmbr0,ip=$STATIC_IP,gw=$GATEWAY"
+    echo "✅ Network configured with IP: $STATIC_IP"
+else
+    echo "Skipping static IP configuration (using DHCP)."
+fi
+
+# ------------------------------
+# Step 5: Install Docker inside container
+# ------------------------------
+echo ""
+echo "------------------------------"
+echo "Step 5: Installing Docker..."
+echo "------------------------------"
+DOCKER_SCRIPT=$(fetch_script "05-install-docker.sh")
+echo "Copying Docker install script to container $CTID..."
+pct push "$CTID" "$DOCKER_SCRIPT" /tmp/05-install-docker.sh
+echo "Executing Docker installation inside container..."
+pct exec "$CTID" -- bash /tmp/05-install-docker.sh
+echo "✅ Docker installed in container $CTID"
+
+# ------------------------------
+# Step 6: Deploy GitOps stack
+# ------------------------------
+echo ""
+echo "------------------------------"
+echo "Step 6: Deploying GitOps stack..."
+echo "------------------------------"
+GITOPS_SCRIPT=$(fetch_script "06-deploy-gitops.sh")
+echo "Copying GitOps deployment script to container $CTID..."
+pct push "$CTID" "$GITOPS_SCRIPT" /tmp/06-deploy-gitops.sh
+echo "Executing GitOps deployment inside container..."
+pct exec "$CTID" -- bash /tmp/06-deploy-gitops.sh
+echo "✅ GitOps stack deployed in container $CTID"
+
+# ------------------------------
+# Step 7: Configure Cloudflare Tunnel (optional)
+# ------------------------------
+echo ""
+echo "------------------------------"
+echo "Step 7: Cloudflare Tunnel setup"
+echo "------------------------------"
+read -rp "Do you want to configure Cloudflare Tunnel? [y/N]: " configure_cloudflare
+if [[ "$configure_cloudflare" =~ ^[Yy]$ ]]; then
+    CLOUDFLARE_SCRIPT=$(fetch_script "07-configure-cloudflare.sh")
+    echo "Copying Cloudflare script to container $CTID..."
+    pct push "$CTID" "$CLOUDFLARE_SCRIPT" /tmp/07-configure-cloudflare.sh
+    echo "Executing Cloudflare setup inside container..."
+    pct exec "$CTID" -- bash /tmp/07-configure-cloudflare.sh
+    echo "✅ Cloudflare Tunnel configured"
+else
+    echo "Skipping Cloudflare Tunnel configuration."
+fi
+
+# ------------------------------
+# Step 8: Deploy Dashboard
+# ------------------------------
+echo ""
+echo "------------------------------"
+echo "Step 8: Deploying Dashboard..."
+echo "------------------------------"
+DASHBOARD_SCRIPT=$(fetch_script "08-deploy-dashboard.sh")
+echo "Copying Dashboard deployment script to container $CTID..."
+pct push "$CTID" "$DASHBOARD_SCRIPT" /tmp/08-deploy-dashboard.sh
+echo "Executing Dashboard deployment inside container..."
+pct exec "$CTID" -- bash /tmp/08-deploy-dashboard.sh
+echo "✅ Dashboard deployed in container $CTID"
+
+# ------------------------------
+# Step 9: Summary
+# ------------------------------
+echo ""
+echo "=============================="
+echo "Deployment Summary"
+echo "=============================="
+SUMMARY_SCRIPT=$(fetch_script "09-summary.sh")
+run_script "$SUMMARY_SCRIPT" bash
+
+echo ""
+echo "=============================="
+echo "✅ Proxmox GitOps Homelab Deployment Complete!"
+echo "=============================="

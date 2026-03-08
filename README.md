@@ -125,11 +125,21 @@ proxmox-private-cloud/
 ## 🔧 How Each Script Works
 ### bootstrap.sh
 
-Runs all scripts in sequence, from CTID detection to dashboard deployment.
-Can be run once, then optionally 07a-cloudflared-setup.sh.
+Orchestrates the complete deployment in 9 steps:
+1. ZFS pool selection and dataset creation
+2. CTID detection (prompts for starting container ID)
+3. LXC container creation (prompts for Debian version and template storage)
+4. Network configuration (optional static IP)
+5. Docker installation inside the container
+6. GitOps stack deployment
+7. Cloudflare Tunnel setup (optional)
+8. Dashboard deployment
+9. Deployment summary
+
+Interactive prompts allow customization at each stage.
 
 ```bash
-bash bootstrap.sh
+REPO_REF=main bash -c "$(curl -fsSL https://raw.githubusercontent.com/ColdShadow80/proxmox-private-cloud/main/bootstrap.sh)"
 ```
 
 ### 01-detect-ctid.sh
@@ -178,7 +188,8 @@ pct set $CTID --net0 name=eth0,bridge=vmbr0,ip=192.168.1.50/24,gw=192.168.1.1
 
 ### 05-install-docker.sh
 
-Installs Docker Engine and Docker Compose plugin, enables Docker on boot.
+Installs Docker Engine and Docker Compose plugin inside the LXC container, enables Docker on boot.
+Uses standard container paths (/var/lib/docker).
 
 ```bash
 apt update
@@ -190,7 +201,7 @@ systemctl enable docker
 
 ### 06-deploy-gitops.sh
 
-Clones the repository into /opt/gitops and deploys all services using Docker Compose.
+Clones the repository into /opt/gitops (inside container) and deploys all services using Docker Compose.
 
 ```bash
 git clone https://github.com/ColdShadow80/proxmox-private-cloud.git /opt/gitops
@@ -235,13 +246,13 @@ bash scripts/07a-cloudflared-setup.sh
 
 ### 08-deploy-dashboard.sh
 
-Deploys a visual homelab dashboard (NGINX container).
+Deploys a visual homelab dashboard inside the container at /opt/dashboard.
 
 ```bash
 docker run -d \
  --name homelab-dashboard \
  -p 9000:80 \
- -v /opt/gitops/dashboard:/usr/share/nginx/html \
+ -v /opt/dashboard:/usr/share/nginx/html \
  nginx:latest
 ```
 

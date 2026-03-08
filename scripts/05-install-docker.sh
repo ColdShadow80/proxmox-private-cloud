@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure ZFS_POOL is defined
-if [ -z "$ZFS_POOL" ]; then
-    echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
-    exit 1
-fi
-
 echo "------------------------------"
 echo "Installing Docker on LXC..."
 echo "------------------------------"
@@ -27,15 +21,14 @@ echo \
 apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Ensure Docker uses the ZFS dataset for volumes
-DOCKER_ROOT="$ZFS_POOL/docker"
+# Configure Docker to use standard paths (container rootfs is already on ZFS)
+DOCKER_ROOT="/var/lib/docker"
 mkdir -p "$DOCKER_ROOT"
 
 # Configure Docker daemon.json
 DOCKER_CONFIG="/etc/docker/daemon.json"
 cat > "$DOCKER_CONFIG" <<EOF
 {
-  "data-root": "$DOCKER_ROOT",
   "storage-driver": "overlay2"
 }
 EOF
@@ -44,4 +37,4 @@ EOF
 systemctl enable docker
 systemctl restart docker
 
-echo "✅ Docker installed. Data-root set to $DOCKER_ROOT"
+echo "✅ Docker installed and configured"

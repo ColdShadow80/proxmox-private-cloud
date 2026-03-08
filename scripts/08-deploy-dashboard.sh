@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure ZFS_POOL is defined
-if [ -z "$ZFS_POOL" ]; then
-    echo "ERROR: ZFS_POOL not defined. Run 02-create-zfs.sh first."
-    exit 1
-fi
-
 echo "------------------------------"
 echo "Deploying Dashboard..."
 echo "------------------------------"
 
-# Define dashboard data path on ZFS pool
-DASHBOARD_ROOT="$ZFS_POOL/dashboard"
+# Define dashboard data path (container-local)
+DASHBOARD_ROOT="/opt/dashboard"
 mkdir -p "$DASHBOARD_ROOT"
 
 # Example: deploy dashboard using docker-compose
