@@ -5,12 +5,10 @@ echo "------------------------------"
 echo "Creating LXC container(s)..."
 echo "------------------------------"
 
-CTID=${CTID:-100}
+CTID=${START_CID:-${CTID:-100}}
 echo "Using starting CTID: $CTID"
 
-# ------------------------------
-# Detect storage for LXC templates
-# ------------------------------
+# Find storage for templates
 TEMPLATE_STORAGE=$(pvesm status | awk 'NR>1 && $2 ~ /dir|nfs|zfspool/ {print $1; exit}')
 if [ -z "$TEMPLATE_STORAGE" ]; then
     echo "ERROR: No suitable storage found for LXC templates!"
@@ -18,18 +16,15 @@ if [ -z "$TEMPLATE_STORAGE" ]; then
 fi
 echo "Using storage for templates: $TEMPLATE_STORAGE"
 
-# ------------------------------
 # Update template list
-# ------------------------------
 echo "Updating Proxmox LXC template list..."
 pveam update
 
-# ------------------------------
-# Ensure Debian 12 template exists
-# ------------------------------
+# Ensure template exists
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64"
+
 if ! pveam list | grep -q "$TEMPLATE_NAME"; then
-    echo "ERROR: Template $TEMPLATE_NAME not found in remote list!"
+    echo "ERROR: Template $TEMPLATE_NAME not found in Proxmox template list!"
     exit 1
 fi
 
@@ -41,9 +36,7 @@ else
     echo "Template $TEMPLATE_NAME already exists on $TEMPLATE_STORAGE."
 fi
 
-# ------------------------------
 # Create LXC container
-# ------------------------------
 LXC_HOSTNAME="homelab-${CTID}"
 echo "Creating LXC container ID $CTID with hostname $LXC_HOSTNAME..."
 
