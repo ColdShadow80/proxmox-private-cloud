@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   dockhand:
     image: fnsys/dockhand:latest
@@ -37,11 +35,12 @@ services:
     restart: unless-stopped
 
   authentik:
-    image: goauthentik/server:latest
+    image: ghcr.io/goauthentik/server:latest
     container_name: authentik
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "9000:9000"
+      - "9443:9443"
 
   nextcloud:
     image: nextcloud:latest
@@ -51,11 +50,11 @@ services:
       - "8081:80"
 
   immich:
-    image: immich/immich:latest
+    image: ghcr.io/immich-app/immich-server:release
     container_name: immich
     restart: unless-stopped
     ports:
-      - "8082:80"
+      - "2283:3001"
 
   uptime-kuma:
     image: louislam/uptime-kuma:latest
