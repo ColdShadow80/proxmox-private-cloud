@@ -70,6 +70,13 @@ git fetch origin main
 git checkout origin/main -- scripts/11-install-homarr.sh
 ```
 
+Or fetch another optional installer script:
+
+```bash
+git checkout origin/main -- scripts/10-install-uptime-kuma.sh
+git checkout origin/main -- scripts/12-install-immich.sh
+```
+
 ### Option A: Deploy one service from the GitOps stack
 
 Inside your homelab container:

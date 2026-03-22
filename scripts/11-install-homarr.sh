@@ -88,12 +88,13 @@ fi
 
 EXISTING_NAMES=$(
   curl -fsS \
-    -H "x-api-key: $HOMARR_API_KEY" \
+    -H "ApiKey: $HOMARR_API_KEY" \
     "$HOMARR_URL/api/apps" | jq -r '.[].name // empty' 2>/dev/null || true
 )
 
 if [ -z "$EXISTING_NAMES" ]; then
-  echo "[homarr-autosync] Could not read existing apps. Verify HOMARR_API_KEY permissions."
+  status_code=$(curl -s -o /dev/null -w '%{http_code}' -H "ApiKey: $HOMARR_API_KEY" "$HOMARR_URL/api/apps" || true)
+  echo "[homarr-autosync] Could not read existing apps from $HOMARR_URL/api/apps (HTTP $status_code). Verify HOMARR_API_KEY and Homarr version."
 fi
 
 added_count=0
@@ -129,7 +130,7 @@ while IFS= read -r container_id; do
 
   if curl -fsS -X POST \
     -H "Content-Type: application/json" \
-    -H "x-api-key: $HOMARR_API_KEY" \
+    -H "ApiKey: $HOMARR_API_KEY" \
     -d "$payload" \
     "$HOMARR_URL/api/apps" >/dev/null 2>&1; then
     echo "[homarr-autosync] Added app: $name -> $app_url"
