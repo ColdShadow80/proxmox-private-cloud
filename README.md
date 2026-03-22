@@ -49,6 +49,71 @@ The chosen domain is stored in:
 /opt/gitops/cloudflared-domain.txt
 ```
 
+## 🎯 Install Only One Service (Existing Setup)
+
+If you already have a container and Docker running, you do **not** need to rerun `bootstrap.sh`.
+
+### Option A: Deploy one service from the GitOps stack
+
+Inside your homelab container:
+
+```bash
+cd /opt/gitops/stacks
+docker compose -f homelab-stack.yml up -d <service-name>
+```
+
+To see all valid `<service-name>` values:
+
+```bash
+docker compose -f /opt/gitops/stacks/homelab-stack.yml config --services
+```
+
+Examples:
+
+```bash
+docker compose -f /opt/gitops/stacks/homelab-stack.yml up -d grafana
+docker compose -f /opt/gitops/stacks/homelab-stack.yml up -d nextcloud
+docker compose -f /opt/gitops/stacks/homelab-stack.yml up -d prometheus
+```
+
+### Option B: Run one optional installer script only
+
+Inside your homelab container:
+
+```bash
+cd /opt/gitops
+bash scripts/10-install-uptime-kuma.sh
+bash scripts/11-install-homarr.sh
+bash scripts/12-install-immich.sh
+```
+
+Run only the one you want. These scripts are safe to re-run and will reuse existing app directories.
+
+From the Proxmox host (without entering the container shell), run one script with:
+
+```bash
+pct exec <CTID> -- bash /opt/gitops/scripts/11-install-homarr.sh
+```
+
+Replace `11-install-homarr.sh` with `10-install-uptime-kuma.sh` or `12-install-immich.sh` as needed.
+
+### Quick reference (pick one)
+
+| Service | Install method | Name to use | Default URL |
+| ------- | -------------- | ----------- | ----------- |
+| Dockhand | Option A (stack) | `dockhand` | `http://<container-ip>:3000` |
+| Traefik Dashboard | Option A (stack) | `traefik` | `http://<container-ip>:8080` |
+| Authentik | Option A (stack) | `authentik` | `http://<container-ip>:8000` |
+| Nextcloud | Option A (stack) | `nextcloud` | `http://<container-ip>:8081` |
+| Immich (stack variant) | Option A (stack) | `immich` | `http://<container-ip>:8082` |
+| Uptime Kuma (stack variant) | Option A (stack) | `uptime-kuma` | `http://<container-ip>:3001` |
+| Gitea | Option A (stack) | `gitea` | `http://<container-ip>:3002` |
+| Grafana | Option A (stack) | `grafana` | `http://<container-ip>:3003` |
+| Prometheus | Option A (stack) | `prometheus` | `http://<container-ip>:9090` |
+| Homarr | Option B (script) | `scripts/11-install-homarr.sh` | `http://<container-ip>:7575` |
+| Uptime Kuma (dedicated installer) | Option B (script) | `scripts/10-install-uptime-kuma.sh` | `http://<container-ip>:3001` |
+| Immich (dedicated installer) | Option B (script) | `scripts/12-install-immich.sh` | `http://<container-ip>:2283` |
+
 ## 🧱 Architecture
 
 ```css
@@ -122,7 +187,10 @@ proxmox-private-cloud/
 │   ├── 07-configure-cloudflare.sh
 │   ├── 07a-cloudflared-setup.sh  # Optional user domain tunnel setup
 │   ├── 08-deploy-dashboard.sh
-│   └── 09-summary.sh
+│   ├── 09-summary.sh
+│   ├── 10-install-uptime-kuma.sh
+│   ├── 11-install-homarr.sh
+│   └── 12-install-immich.sh
 └── stacks/
     ├── homelab-stack.yml          # Your customized service stack
     └── homelab-stack.yml.example  # Template with example services
@@ -308,6 +376,32 @@ echo "Dockhand: https://dockhand.<domain>"
 echo "Traefik: https://traefik.<domain>"
 echo "Dashboard: https://dashboard.<domain>"
 ```
+
+### 11-install-homarr.sh
+
+Installs Homarr with Docker socket integration and enables automatic app discovery.
+
+- Deploys Homarr at `http://<container-ip>:7575`
+- Creates `/opt/apps/homarr/homarr-autosync.sh`
+- Schedules recurring scans in `/etc/cron.d/homarr-autosync` (every 15 minutes)
+- Runs an initial sync after deployment
+
+To enable automatic app creation in Homarr:
+
+1. Open Homarr and generate an API key in **Admin → API keys**.
+2. Set the key in `/opt/apps/homarr/.env`:
+
+```bash
+HOMARR_API_KEY=your_api_key_here
+```
+
+3. Re-run sync immediately (optional):
+
+```bash
+/opt/apps/homarr/homarr-autosync.sh
+```
+
+By default, the sync job adds running Docker containers with published ports as Homarr apps and skips containers already present.
 
 🌐 Cloudflare Tunnel Explained
 

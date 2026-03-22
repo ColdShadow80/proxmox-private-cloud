@@ -23,7 +23,15 @@ echo "Container IP:   $IP"
 echo ""
 echo "Dockhand:          http://$IP:3000"
 echo "Traefik Dashboard: http://$IP:8080"
-echo "Uptime Kuma:       http://$IP:3001"
+if [ "${INSTALL_UPTIME:-false}" = "true" ]; then
+	echo "Uptime Kuma:       http://$IP:3001"
+fi
+if [ "${INSTALL_HOMARR:-false}" = "true" ]; then
+	echo "Homarr:            http://$IP:7575"
+fi
+if [ "${INSTALL_IMMICH:-false}" = "true" ]; then
+	echo "Immich:            http://$IP:2283"
+fi
 echo "Gitea:             http://$IP:3002"
 echo "Grafana:           http://$IP:3003"
 echo "Prometheus:        http://$IP:9090"

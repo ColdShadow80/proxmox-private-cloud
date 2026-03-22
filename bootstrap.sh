@@ -13,6 +13,25 @@ echo "Temporary script directory: $SCRIPT_DIR"
 echo "Using repository ref: $REPO_REF"
 
 # ------------------------------
+# Optional app selection (default: No)
+# ------------------------------
+echo ""
+echo "------------------------------"
+echo "Optional app selection"
+echo "------------------------------"
+read -rp "Install Uptime Kuma? [y/N]: " INSTALL_UPTIME_ANSWER
+read -rp "Install Homarr? [y/N]: " INSTALL_HOMARR_ANSWER
+read -rp "Install Immich? [y/N]: " INSTALL_IMMICH_ANSWER
+
+INSTALL_UPTIME="false"
+INSTALL_HOMARR="false"
+INSTALL_IMMICH="false"
+
+if [[ "$INSTALL_UPTIME_ANSWER" =~ ^[Yy]$ ]]; then INSTALL_UPTIME="true"; fi
+if [[ "$INSTALL_HOMARR_ANSWER" =~ ^[Yy]$ ]]; then INSTALL_HOMARR="true"; fi
+if [[ "$INSTALL_IMMICH_ANSWER" =~ ^[Yy]$ ]]; then INSTALL_IMMICH="true"; fi
+
+# ------------------------------
 # Function to fetch scripts safely
 # ------------------------------
 fetch_script() {
@@ -167,12 +186,69 @@ pct exec "$CTID" -- bash /tmp/08-deploy-dashboard.sh
 echo "✅ Dashboard step completed in container $CTID"
 
 # ------------------------------
-# Step 9: Summary
+# Step 9: Install Uptime Kuma
+# ------------------------------
+if [ "$INSTALL_UPTIME" = "true" ]; then
+    echo ""
+    echo "------------------------------"
+    echo "Step 9: Installing Uptime Kuma..."
+    echo "------------------------------"
+    UPTIME_SCRIPT=$(fetch_script "10-install-uptime-kuma.sh")
+    echo "Copying Uptime Kuma script to container $CTID..."
+    pct push "$CTID" "$UPTIME_SCRIPT" /tmp/10-install-uptime-kuma.sh
+    echo "Executing Uptime Kuma installation inside container..."
+    pct exec "$CTID" -- bash /tmp/10-install-uptime-kuma.sh
+    echo "✅ Uptime Kuma installation step completed"
+else
+    echo "Skipping Uptime Kuma installation."
+fi
+
+# ------------------------------
+# Step 10: Install Homarr
+# ------------------------------
+if [ "$INSTALL_HOMARR" = "true" ]; then
+    echo ""
+    echo "------------------------------"
+    echo "Step 10: Installing Homarr..."
+    echo "------------------------------"
+    HOMARR_SCRIPT=$(fetch_script "11-install-homarr.sh")
+    echo "Copying Homarr script to container $CTID..."
+    pct push "$CTID" "$HOMARR_SCRIPT" /tmp/11-install-homarr.sh
+    echo "Executing Homarr installation inside container..."
+    pct exec "$CTID" -- bash /tmp/11-install-homarr.sh
+    echo "✅ Homarr installation step completed"
+else
+    echo "Skipping Homarr installation."
+fi
+
+# ------------------------------
+# Step 11: Install Immich
+# ------------------------------
+if [ "$INSTALL_IMMICH" = "true" ]; then
+    echo ""
+    echo "------------------------------"
+    echo "Step 11: Installing Immich..."
+    echo "------------------------------"
+    IMMICH_SCRIPT=$(fetch_script "12-install-immich.sh")
+    echo "Copying Immich script to container $CTID..."
+    pct push "$CTID" "$IMMICH_SCRIPT" /tmp/12-install-immich.sh
+    echo "Executing Immich installation inside container..."
+    pct exec "$CTID" -- bash /tmp/12-install-immich.sh
+    echo "✅ Immich installation step completed"
+else
+    echo "Skipping Immich installation."
+fi
+
+# ------------------------------
+# Step 12: Summary
 # ------------------------------
 echo ""
 echo "=============================="
 echo "Deployment Summary"
 echo "=============================="
+export INSTALL_UPTIME
+export INSTALL_HOMARR
+export INSTALL_IMMICH
 SUMMARY_SCRIPT=$(fetch_script "09-summary.sh")
 run_script "$SUMMARY_SCRIPT" bash
 
