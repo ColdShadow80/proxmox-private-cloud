@@ -53,6 +53,23 @@ The chosen domain is stored in:
 
 If you already have a container and Docker running, you do **not** need to rerun `bootstrap.sh`.
 
+### Update scripts first (recommended)
+
+If your container was created earlier, it may not have the newest scripts yet.
+
+```bash
+cd /opt/gitops
+git pull origin main
+```
+
+If `git pull` is blocked by local changes, fetch only one script:
+
+```bash
+cd /opt/gitops
+git fetch origin main
+git checkout origin/main -- scripts/11-install-homarr.sh
+```
+
 ### Option A: Deploy one service from the GitOps stack
 
 Inside your homelab container:
