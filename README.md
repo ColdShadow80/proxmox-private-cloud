@@ -408,7 +408,7 @@ Installs Homarr with Docker socket integration and enables automatic app discove
 - Deploys Homarr at `http://<container-ip>:7575`
 - Sets `AUTH_PROVIDERS=credentials` in `/opt/apps/homarr/.env`
 - Creates `/opt/apps/homarr/homarr-autosync.sh`
-- Schedules recurring scans in `/etc/cron.d/homarr-autosync` (every 15 minutes)
+- Schedules recurring scans in `/etc/cron.d/homarr-autosync` (every 15 minutes), only when `/api/apps` is exposed
 - Runs an initial sync after deployment
 
 To enable automatic app creation in Homarr:
@@ -435,6 +435,7 @@ curl -s http://127.0.0.1:7575/api/openapi | jq '.paths | has("/api/apps")'
 ```
 
 If this returns `false`, use Homarr UI import instead: **Manage -> Tools -> Docker -> Add to Homarr**.
+In this case, the installer automatically disables the autosync cron job.
 
 🌐 Cloudflare Tunnel Explained
 

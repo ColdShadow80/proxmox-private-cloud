@@ -171,15 +171,23 @@ systemctl restart cron >/dev/null 2>&1 || true
 docker compose -f "$APP_DIR/docker-compose.yml" up -d
 
 HOMARR_URL="http://127.0.0.1:7575"
+API_APPS_SUPPORTED="false"
 if curl -fsS "$HOMARR_URL/api/openapi" | jq -e '.paths | has("/api/apps")' >/dev/null 2>&1; then
+  API_APPS_SUPPORTED="true"
   echo "✅ Homarr API routes are exposed at $HOMARR_URL/api/*"
 else
   echo "⚠️ Homarr started, but OpenAPI reports no /api/apps route on this build."
   echo "⚠️ Use Homarr UI: Manage -> Tools -> Docker -> Add to Homarr."
 fi
 
-echo "Running initial Homarr autosync..."
-"$APP_DIR/homarr-autosync.sh" || true
+if [ "$API_APPS_SUPPORTED" = "true" ]; then
+  echo "Running initial Homarr autosync..."
+  "$APP_DIR/homarr-autosync.sh" || true
+else
+  rm -f /etc/cron.d/homarr-autosync
+  systemctl restart cron >/dev/null 2>&1 || true
+  echo "ℹ️ Autosync cron disabled because /api/apps is not available on this Homarr build."
+fi
 
 echo "✅ Homarr installed at http://<container-ip>:7575"
 echo "ℹ️ Set HOMARR_API_KEY in $APP_DIR/.env to enable full auto-population."
