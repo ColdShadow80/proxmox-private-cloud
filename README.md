@@ -86,6 +86,13 @@ cd /opt/gitops/stacks
 docker compose -f homelab-stack.yml up -d <service-name>
 ```
 
+For Authentik, set a persistent secret key once before first start:
+
+```bash
+cd /opt/gitops/stacks
+grep -q '^AUTHENTIK_SECRET_KEY=' .env || echo "AUTHENTIK_SECRET_KEY=$(openssl rand -hex 32)" >> .env
+```
+
 To see all valid `<service-name>` values:
 
 ```bash

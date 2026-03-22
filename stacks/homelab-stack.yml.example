@@ -39,6 +39,8 @@ services:
   authentik:
     image: ghcr.io/goauthentik/server:latest
     container_name: authentik
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
     restart: unless-stopped
     ports:
       - "9000:9000"
