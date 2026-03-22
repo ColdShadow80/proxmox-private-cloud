@@ -91,6 +91,7 @@ For Authentik, set a persistent secret key once before first start:
 ```bash
 cd /opt/gitops/stacks
 grep -q '^AUTHENTIK_SECRET_KEY=' .env || echo "AUTHENTIK_SECRET_KEY=$(openssl rand -hex 32)" >> .env
+grep -q '^AUTHENTIK_POSTGRESQL_PASSWORD=' .env || echo "AUTHENTIK_POSTGRESQL_PASSWORD=$(openssl rand -hex 24)" >> .env
 ```
 
 To see all valid `<service-name>` values:
@@ -136,7 +137,7 @@ Replace `11-install-homarr.sh` with `10-install-uptime-kuma.sh` or `12-install-i
 | ------- | -------------- | ----------- | ----------- |
 | Dockhand | Option A (stack) | `dockhand` | `http://<container-ip>:3000` |
 | Traefik Dashboard | Option A (stack) | `traefik` | `http://<container-ip>:8080` |
-| Authentik | Option A (stack) | `authentik` | `http://<container-ip>:8000` |
+| Authentik | Option A (stack) | `authentik` | `http://<container-ip>:9000` |
 | Nextcloud | Option A (stack) | `nextcloud` | `http://<container-ip>:8081` |
 | Immich (stack variant) | Option A (stack) | `immich` | `http://<container-ip>:8082` |
 | Uptime Kuma (stack variant) | Option A (stack) | `uptime-kuma` | `http://<container-ip>:3001` |

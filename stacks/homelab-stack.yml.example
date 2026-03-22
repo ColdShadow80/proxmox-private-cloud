@@ -39,12 +39,53 @@ services:
   authentik:
     image: ghcr.io/goauthentik/server:latest
     container_name: authentik
+    command: server
     environment:
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_POSTGRESQL_PASSWORD}
+    depends_on:
+      - authentik-redis
+      - authentik-postgresql
     restart: unless-stopped
     ports:
       - "9000:9000"
       - "9443:9443"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:latest
+    container_name: authentik-worker
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_POSTGRESQL_PASSWORD}
+    depends_on:
+      - authentik-redis
+      - authentik-postgresql
+    restart: unless-stopped
+
+  authentik-redis:
+    image: redis:7-alpine
+    container_name: authentik-redis
+    restart: unless-stopped
+
+  authentik-postgresql:
+    image: postgres:16-alpine
+    container_name: authentik-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_POSTGRESQL_PASSWORD}
+    volumes:
+      - authentik_postgresql:/var/lib/postgresql/data
 
   nextcloud:
     image: nextcloud:latest
@@ -180,6 +221,7 @@ services:
       - "9090:9090"
 
 volumes:
+  authentik_postgresql:
   dockhand_data:
   immich_photos:
   immich_postgres:
