@@ -223,7 +223,8 @@ proxmox-private-cloud/
 │   ├── 10-install-uptime-kuma.sh
 │   ├── 11-install-homarr.sh
 │   ├── 12-install-immich.sh
-│   └── 13-install-paperless.sh
+│   ├── 13-install-paperless.sh
+│   └── paperless-change-model.sh
 └── stacks/
     ├── homelab-stack.yml          # Your customized service stack
     └── homelab-stack.yml.example  # Template with example services
@@ -469,6 +470,37 @@ cp /path/to/document.pdf /opt/apps/paperless/consume/
 ```
 
 **GPU acceleration** (NVIDIA only): Uncomment the `deploy.resources` block in the `paperless-ollama` service inside `/opt/apps/paperless/docker-compose.yml`.
+
+**Changing AI models:**
+
+Use the included helper script to swap models without manually editing `docker-compose.yml`:
+
+```bash
+# List currently pulled models
+bash scripts/paperless-change-model.sh --list
+
+# Change text model only (used by Paperless-AI + Paperless-GPT)
+bash scripts/paperless-change-model.sh --text deepseek-r1:7b
+
+# Change vision OCR model only (used by Paperless-GPT)
+bash scripts/paperless-change-model.sh --vision minicpm-v:8b
+
+# Change both at once
+bash scripts/paperless-change-model.sh --text qwen2.5:7b --vision minicpm-v:8b
+```
+
+The script pulls the model from Ollama, updates `docker-compose.yml`, and restarts `paperless-ai` and `paperless-gpt` automatically.
+
+> You can also pull models via Open WebUI (**Settings → Admin Panel → Models**) before running the script, which avoids re-downloading.
+
+**Recommended CPU-friendly text models** (better reasoning than the default `llama3.2:3b`):
+
+| Model | Size | Notes |
+| ----- | ---- | ----- |
+| `qwen2.5:7b` | ~4.7 GB | Best structured JSON output for tagging |
+| `deepseek-r1:7b` | ~4.7 GB | Strong chain-of-thought reasoning |
+| `mistral:7b` | ~4.1 GB | Good instruction following |
+| `phi4:14b` | ~8.9 GB | High quality, needs ≥16 GB RAM |
 
 > Reference: [TechnoTim — Paperless-ngx + Local AI](https://technotim.com/posts/paperless-ngx-local-ai/)
 
