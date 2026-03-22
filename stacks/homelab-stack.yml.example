@@ -54,7 +54,35 @@ services:
     container_name: immich
     restart: unless-stopped
     ports:
-      - "2283:3001"
+      - "8082:2283"
+    environment:
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: immich
+      DB_PASSWORD: immich
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: immich-redis
+      UPLOAD_LOCATION: /usr/src/app/upload
+    volumes:
+      - immich_photos:/usr/src/app/upload
+    depends_on:
+      - immich-redis
+      - immich-postgres
+
+  immich-redis:
+    image: redis:7-alpine
+    container_name: immich-redis
+    restart: unless-stopped
+
+  immich-postgres:
+    image: tensorchord/pgvecto-rs:pg14-v0.2.0
+    container_name: immich-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: immich
+      POSTGRES_DB: immich
+    volumes:
+      - immich_postgres:/var/lib/postgresql/data
 
   uptime-kuma:
     image: louislam/uptime-kuma:latest
@@ -86,3 +114,5 @@ services:
 
 volumes:
   dockhand_data:
+  immich_photos:
+  immich_postgres:
