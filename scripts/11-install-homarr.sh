@@ -27,18 +27,25 @@ fi
 
 SECRET_ENCRYPTION_KEY=""
 HOMARR_API_KEY=""
+AUTH_PROVIDERS="credentials"
 if [ -f "$APP_DIR/.env" ]; then
   SECRET_ENCRYPTION_KEY=$(grep '^SECRET_ENCRYPTION_KEY=' "$APP_DIR/.env" | head -n1 | cut -d'=' -f2- || true)
   HOMARR_API_KEY=$(grep '^HOMARR_API_KEY=' "$APP_DIR/.env" | head -n1 | cut -d'=' -f2- || true)
+  AUTH_PROVIDERS=$(grep '^AUTH_PROVIDERS=' "$APP_DIR/.env" | head -n1 | cut -d'=' -f2- || true)
 fi
 
 if [ -z "$SECRET_ENCRYPTION_KEY" ]; then
   SECRET_ENCRYPTION_KEY=$(openssl rand -hex 32)
 fi
 
+if [ -z "$AUTH_PROVIDERS" ]; then
+  AUTH_PROVIDERS="credentials"
+fi
+
 cat > "$APP_DIR/.env" <<EOF
 SECRET_ENCRYPTION_KEY=$SECRET_ENCRYPTION_KEY
 HOMARR_API_KEY=$HOMARR_API_KEY
+AUTH_PROVIDERS=$AUTH_PROVIDERS
 EOF
 
 cat > "$APP_DIR/docker-compose.yml" <<'EOF'
@@ -84,6 +91,12 @@ fi
 if ! curl -fsS "$HOMARR_URL/api/health/ready" >/dev/null 2>&1; then
   echo "[homarr-autosync] Homarr is not ready at $HOMARR_URL."
   exit 1
+fi
+
+if ! curl -fsS "$HOMARR_URL/api/openapi" | jq -e '.paths | has("/api/apps")' >/dev/null 2>&1; then
+  echo "[homarr-autosync] This Homarr build does not expose /api/apps (OpenAPI paths are empty or missing)."
+  echo "[homarr-autosync] Use Homarr UI: Manage -> Tools -> Docker -> Add to Homarr."
+  exit 0
 fi
 
 EXISTING_NAMES=$(
@@ -156,6 +169,14 @@ systemctl enable cron >/dev/null 2>&1 || true
 systemctl restart cron >/dev/null 2>&1 || true
 
 docker compose -f "$APP_DIR/docker-compose.yml" up -d
+
+HOMARR_URL="http://127.0.0.1:7575"
+if curl -fsS "$HOMARR_URL/api/openapi" | jq -e '.paths | has("/api/apps")' >/dev/null 2>&1; then
+  echo "✅ Homarr API routes are exposed at $HOMARR_URL/api/*"
+else
+  echo "⚠️ Homarr started, but OpenAPI reports no /api/apps route on this build."
+  echo "⚠️ Use Homarr UI: Manage -> Tools -> Docker -> Add to Homarr."
+fi
 
 echo "Running initial Homarr autosync..."
 "$APP_DIR/homarr-autosync.sh" || true

@@ -406,6 +406,7 @@ echo "Dashboard: https://dashboard.<domain>"
 Installs Homarr with Docker socket integration and enables automatic app discovery.
 
 - Deploys Homarr at `http://<container-ip>:7575`
+- Sets `AUTH_PROVIDERS=credentials` in `/opt/apps/homarr/.env`
 - Creates `/opt/apps/homarr/homarr-autosync.sh`
 - Schedules recurring scans in `/etc/cron.d/homarr-autosync` (every 15 minutes)
 - Runs an initial sync after deployment
@@ -426,6 +427,14 @@ HOMARR_API_KEY=your_api_key_here
 ```
 
 By default, the sync job adds running Docker containers with published ports as Homarr apps and skips containers already present.
+
+To verify API exposure after install:
+
+```bash
+curl -s http://127.0.0.1:7575/api/openapi | jq '.paths | has("/api/apps")'
+```
+
+If this returns `false`, use Homarr UI import instead: **Manage -> Tools -> Docker -> Add to Homarr**.
 
 🌐 Cloudflare Tunnel Explained
 
