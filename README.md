@@ -109,6 +109,8 @@ cd /opt/gitops
 bash scripts/10-install-uptime-kuma.sh
 bash scripts/11-install-homarr.sh
 bash scripts/12-install-immich.sh
+bash scripts/13-install-paperless.sh           # Paperless-ngx (no AI)
+bash scripts/13-install-paperless.sh --with-ai # Paperless-ngx + Local AI
 ```
 
 Run only the one you want. These scripts are safe to re-run and will reuse existing app directories.
@@ -134,9 +136,14 @@ Replace `11-install-homarr.sh` with `10-install-uptime-kuma.sh` or `12-install-i
 | Gitea | Option A (stack) | `gitea` | `http://<container-ip>:3002` |
 | Grafana | Option A (stack) | `grafana` | `http://<container-ip>:3003` |
 | Prometheus | Option A (stack) | `prometheus` | `http://<container-ip>:9090` |
+| Paperless-ngx (stack variant) | Option A (stack) | `paperless-ngx` | `http://<container-ip>:8000` |
 | Homarr | Option B (script) | `scripts/11-install-homarr.sh` | `http://<container-ip>:7575` |
 | Uptime Kuma (dedicated installer) | Option B (script) | `scripts/10-install-uptime-kuma.sh` | `http://<container-ip>:3001` |
 | Immich (dedicated installer) | Option B (script) | `scripts/12-install-immich.sh` | `http://<container-ip>:2283` |
+| Paperless-ngx (dedicated installer) | Option B (script) | `scripts/13-install-paperless.sh` | `http://<container-ip>:8000` |
+| Open WebUI (AI, with --with-ai) | Option B (script) | `scripts/13-install-paperless.sh --with-ai` | `http://<container-ip>:3010` |
+| Paperless-AI (with --with-ai) | Option B (script) | `scripts/13-install-paperless.sh --with-ai` | `http://<container-ip>:3020` |
+| Paperless-GPT (with --with-ai) | Option B (script) | `scripts/13-install-paperless.sh --with-ai` | `http://<container-ip>:3030` |
 
 ## 🧱 Architecture
 
@@ -188,6 +195,7 @@ Proxmox VE
 | Uptime Kuma       | Uptime monitoring           |
 | Nextcloud         | Self-hosted cloud           |
 | Immich            | Photo management            |
+| Paperless-ngx     | Document management + OCR   |
 | Grafana           | Metrics dashboard           |
 | Prometheus        | Metrics collection          |
 | Gitea             | Git server                  |
@@ -214,7 +222,8 @@ proxmox-private-cloud/
 │   ├── 09-summary.sh
 │   ├── 10-install-uptime-kuma.sh
 │   ├── 11-install-homarr.sh
-│   └── 12-install-immich.sh
+│   ├── 12-install-immich.sh
+│   └── 13-install-paperless.sh
 └── stacks/
     ├── homelab-stack.yml          # Your customized service stack
     └── homelab-stack.yml.example  # Template with example services
@@ -400,6 +409,70 @@ echo "Dockhand: https://dockhand.<domain>"
 echo "Traefik: https://traefik.<domain>"
 echo "Dashboard: https://dashboard.<domain>"
 ```
+
+### 13-install-paperless.sh
+
+Installs Paperless-ngx — a self-hosted document management system with OCR, full-text search, and AI-assisted tagging. Optionally deploys a full local AI stack (Ollama, Open WebUI, Paperless-AI, Paperless-GPT).
+
+All secrets are auto-generated on first install and preserved on re-runs.
+
+**Core services (always installed):**
+
+| Container | Image | Host Port |
+| --------- | ----- | --------- |
+| `paperless-ngx` | `ghcr.io/paperless-ngx/paperless-ngx:latest` | `8000` |
+| `paperless-postgres` | `postgres:17-alpine` | — |
+| `paperless-redis` | `redis:8-alpine` | — |
+| `paperless-gotenberg` | `gotenberg/gotenberg:8` | — (internal) |
+| `paperless-tika` | `apache/tika:latest` | — (internal) |
+
+**AI services (enabled with `--with-ai`):**
+
+| Container | Image | Host Port |
+| --------- | ----- | --------- |
+| `paperless-ollama` | `ollama/ollama:latest` | — (internal) |
+| `paperless-openwebui` | `ghcr.io/open-webui/open-webui:latest` | `3010` |
+| `paperless-ai` | `clusterzx/paperless-ai:latest` | `3020` |
+| `paperless-gpt` | `icereed/paperless-gpt:latest` | `3030` |
+
+**Basic install (no AI):**
+
+```bash
+bash scripts/13-install-paperless.sh
+```
+
+**Install with local AI:**
+
+```bash
+bash scripts/13-install-paperless.sh --with-ai
+```
+
+At the end the script prints the admin username and auto-generated password.
+
+**Post-install AI setup** (only needed with `--with-ai`):
+
+1. Open WebUI at `http://<container-ip>:3010` and pull models:
+   - `llama3.2:3b` — used by Paperless-AI and Paperless-GPT for metadata
+   - `minicpm-v:8b` — used by Paperless-GPT for vision OCR
+2. In Paperless UI → **Profile → API Tokens → Generate** a token.
+3. Edit `/opt/apps/paperless/docker-compose.yml` and replace `REPLACE_WITH_PAPERLESS_API_TOKEN` in the `paperless-ai` and `paperless-gpt` services.
+4. Restart the AI services:
+
+```bash
+docker compose -f /opt/apps/paperless/docker-compose.yml restart paperless-ai paperless-gpt
+```
+
+**Drop documents for automatic ingestion:**
+
+```bash
+cp /path/to/document.pdf /opt/apps/paperless/consume/
+```
+
+**GPU acceleration** (NVIDIA only): Uncomment the `deploy.resources` block in the `paperless-ollama` service inside `/opt/apps/paperless/docker-compose.yml`.
+
+> Reference: [TechnoTim — Paperless-ngx + Local AI](https://technotim.com/posts/paperless-ngx-local-ai/)
+
+---
 
 ### 11-install-homarr.sh
 

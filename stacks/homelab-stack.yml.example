@@ -84,6 +84,69 @@ services:
     volumes:
       - immich_postgres:/var/lib/postgresql/data
 
+  paperless-ngx:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless-ngx
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PAPERLESS_REDIS: redis://paperless-redis:6379
+      PAPERLESS_DBHOST: paperless-postgres
+      PAPERLESS_DBNAME: paperless
+      PAPERLESS_DBUSER: paperless
+      PAPERLESS_DBPASS: changeme_paperless
+      PAPERLESS_SECRET_KEY: changeme_secret_key_replace_with_random_64_chars
+      PAPERLESS_TIKA_ENABLED: "1"
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
+      PAPERLESS_ALLOWED_HOSTS: "*"
+      PAPERLESS_ADMIN_USER: admin
+      PAPERLESS_ADMIN_PASSWORD: changeme_admin
+      PAPERLESS_ADMIN_MAIL: admin@localhost
+    depends_on:
+      - paperless-postgres
+      - paperless-redis
+      - paperless-gotenberg
+      - paperless-tika
+    volumes:
+      - paperless_data:/usr/src/paperless/data
+      - paperless_media:/usr/src/paperless/media
+      - paperless_export:/usr/src/paperless/export
+      - paperless_consume:/usr/src/paperless/consume
+
+  paperless-postgres:
+    image: postgres:17-alpine
+    container_name: paperless-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: changeme_paperless
+    volumes:
+      - paperless_postgres:/var/lib/postgresql/data
+
+  paperless-redis:
+    image: redis:8-alpine
+    container_name: paperless-redis
+    restart: unless-stopped
+    volumes:
+      - paperless_redis:/data
+
+  paperless-gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: paperless-gotenberg
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+
+  paperless-tika:
+    image: apache/tika:latest
+    container_name: paperless-tika
+    restart: unless-stopped
+
   uptime-kuma:
     image: louislam/uptime-kuma:latest
     container_name: uptime-kuma
@@ -116,3 +179,9 @@ volumes:
   dockhand_data:
   immich_photos:
   immich_postgres:
+  paperless_data:
+  paperless_media:
+  paperless_export:
+  paperless_consume:
+  paperless_postgres:
+  paperless_redis:
