@@ -60,6 +60,8 @@ services:
     image: ghcr.io/goauthentik/server:latest
     container_name: authentik-worker
     command: worker
+    labels:
+      - traefik.enable=false
     environment:
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
       AUTHENTIK_REDIS__HOST: authentik-redis
@@ -75,11 +77,15 @@ services:
   authentik-redis:
     image: redis:7-alpine
     container_name: authentik-redis
+    labels:
+      - traefik.enable=false
     restart: unless-stopped
 
   authentik-postgresql:
     image: postgres:16-alpine
     container_name: authentik-postgresql
+    labels:
+      - traefik.enable=false
     restart: unless-stopped
     environment:
       POSTGRES_DB: authentik
