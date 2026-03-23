@@ -15,6 +15,7 @@ services:
     command:
       - --api.dashboard=true
       - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
     ports:

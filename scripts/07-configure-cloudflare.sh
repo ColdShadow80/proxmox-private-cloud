@@ -18,6 +18,7 @@ run_cloudflared() {
 		docker run -d \
 			--name cloudflared \
 			--restart unless-stopped \
+			--label traefik.enable=false \
 			cloudflare/cloudflared:latest tunnel --no-autoupdate run >/dev/null
 	fi
 
@@ -28,7 +29,7 @@ run_cloudflared() {
 if command -v pct >/dev/null 2>&1 && [ -f /tmp/homelab_ctid ]; then
 	CTID=$(cat /tmp/homelab_ctid)
 	echo "Running Cloudflare setup inside container $CTID..."
-	pct exec "$CTID" -- bash -c 'docker ps -a --format "{{.Names}}" | grep -qx cloudflared && docker restart cloudflared >/dev/null || docker run -d --name cloudflared --restart unless-stopped cloudflare/cloudflared:latest tunnel --no-autoupdate run >/dev/null'
+	pct exec "$CTID" -- bash -c 'docker ps -a --format "{{.Names}}" | grep -qx cloudflared && docker restart cloudflared >/dev/null || docker run -d --name cloudflared --restart unless-stopped --label traefik.enable=false cloudflare/cloudflared:latest tunnel --no-autoupdate run >/dev/null'
 	echo "✅ Cloudflare Tunnel container is running in CTID $CTID."
 else
 	# Container mode: run directly
