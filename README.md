@@ -153,6 +153,103 @@ Replace `11-install-homarr.sh` with `10-install-uptime-kuma.sh` or `12-install-i
 | Paperless-AI (with --with-ai) | Option B (script) | `scripts/13-install-paperless.sh --with-ai` | `http://<container-ip>:3020` |
 | Paperless-GPT (with --with-ai) | Option B (script) | `scripts/13-install-paperless.sh --with-ai` | `http://<container-ip>:3030` |
 
+## 🔐 Authentik Setup and Usage (Stack)
+
+This stack runs Authentik as four services:
+
+- `authentik` (server)
+- `authentik-worker` (background tasks)
+- `authentik-postgresql` (database)
+- `authentik-redis` (cache/queue)
+
+### 1) Required secrets in `.env`
+
+Before starting Authentik, ensure both variables exist in `/opt/gitops/stacks/.env`:
+
+```bash
+cd /opt/gitops/stacks
+grep -q '^AUTHENTIK_SECRET_KEY=' .env || echo "AUTHENTIK_SECRET_KEY=$(openssl rand -hex 32)" >> .env
+grep -q '^AUTHENTIK_POSTGRESQL_PASSWORD=' .env || echo "AUTHENTIK_POSTGRESQL_PASSWORD=$(openssl rand -hex 24)" >> .env
+```
+
+### 2) Start Authentik services
+
+```bash
+cd /opt/gitops/stacks
+docker compose -f homelab-stack.yml up -d authentik-postgresql authentik-redis authentik authentik-worker
+docker compose -f homelab-stack.yml ps
+```
+
+Healthy startup indicators in logs:
+
+- `PostgreSQL connection successful`
+- `Redis Connection successful`
+- `Finished authentik bootstrap`
+
+Access Authentik at:
+
+- `http://<container-ip>:9000`
+- `https://<container-ip>:9443`
+
+### 3) Configure OIDC for Grafana
+
+In Authentik:
+
+1. Create an **OAuth2/OpenID Provider**.
+2. Set Redirect URI to:
+   - `https://grafana.<your-domain>/login/generic_oauth`
+3. Use scopes: `openid profile email`.
+4. Create an Application and attach that provider.
+5. Copy Client ID and Client Secret.
+
+In Grafana, configure Generic OAuth with:
+
+- Auth URL: `https://auth.<your-domain>/application/o/authorize/`
+- Token URL: `https://auth.<your-domain>/application/o/token/`
+- UserInfo URL: `https://auth.<your-domain>/application/o/userinfo/`
+- Root URL: `https://grafana.<your-domain>`
+
+### 4) Configure OIDC for Gitea
+
+In Authentik:
+
+1. Create another OAuth2/OpenID Provider.
+2. Set Redirect URI to:
+   - `https://git.<your-domain>/user/oauth2/authentik/callback`
+3. Create an Application and attach that provider.
+
+In Gitea (Admin -> Authentication Sources -> OpenID Connect):
+
+- Discovery URL:
+  - `https://auth.<your-domain>/application/o/<provider-slug>/.well-known/openid-configuration`
+- Client ID / Client Secret from Authentik.
+- Scopes: `openid profile email`.
+
+### 5) Group-based access control
+
+Use Authentik groups (for example: `admins`, `dev`, `readonly`) and bind policies to each Application so only authorized groups can sign in.
+
+### Troubleshooting
+
+#### Traefik `port is missing`
+
+This stack uses Traefik Docker provider with:
+
+- `--providers.docker.exposedbydefault=false`
+
+Containers that should never be routed (such as workers/tunnels) are explicitly disabled with label:
+
+- `traefik.enable=false`
+
+#### Authentik boot loop with `manage.py help`
+
+If logs repeatedly print `Available subcommands`, the server command is wrong or missing.
+
+This stack fixes that by setting:
+
+- `authentik` -> `command: server`
+- `authentik-worker` -> `command: worker`
+
 ## 🧱 Architecture
 
 ```css
